@@ -1,5 +1,5 @@
-dev=1
-ver="0.21"
+dev=0
+ver="0.23"
 latest_update="2022/02/11"
 
 poke(0X5F5C, 12) poke(0X5F5D, 3) -- Input Delay(default 15, 4)
@@ -195,11 +195,8 @@ function space:init(is_front)
 		}
 	end
 	if is_front then
-		for i=1,3 do add(self.stars,make_star(i,1.2,3,4)) end
+		for i=1,4 do add(self.stars,make_star(i,1.2,3,4)) end
 	else
-		-- for i=1,4 do
-		-- 	add(self.stars,make_star(i,4,0.3,0.3))
-		-- end
 		for i=1,4 do add(self.stars,make_star(i,0.1,0.3,0)) end
 		for i=1,6 do add(self.stars,make_star(i,0.3,0.5,1)) end
 		for i=1,4 do add(self.stars,make_star(i,0.6,0.9,2)) end
@@ -210,10 +207,12 @@ function space:init(is_front)
 	self:on("update",self.on_update)
 end
 
---ptcl_size_thrust="001111111000000"
-ptcl_size_thrust="111223332332222222111111110000"
+-- ptcl_size_enemy="0011221211211110101000"
+ptcl_size_enemy="010111010100"
+-- ptcl_size_thrust="111223332332222222111111110000"
+ptcl_size_thrust="0001111122223333344443333322222111111110000"
 -- ptcl_thrust_col="c77aa99882211211" -- 우주
-ptcl_thrust_col="c77aa9988282d2ddd6d66" -- 대기
+ptcl_thrust_col="777aa99ee8844d4dd6d666" -- 대기
 ptcl_back_col="77666dd1d111"
 ptcl_fire_col="89a7"
 ptcl_size_explosion="3577767766666555544444333332222221111111000"
@@ -248,40 +247,30 @@ function space:_draw()
 	-- for v in all(self.stars) do
 		local x=v.x-self.spd_x*v.spd
 		local y=v.y+self.spd_y*v.spd
-		-- v.x=x>127 and x-127 or x<0 and x+127 or x
-		-- v.y=y>127 and y-127 or y<0 and y+127 or y
 		v.x=x>147 and x-167 or x<-20 and x+167 or x
 		v.y=y>147 and y-167 or y<-20 and y+167 or y
 		local x2=v.x+cx
 		local y2=v.y+cy
-		-- x2=x2>129 and x2-129 or x2<-2 and x2+129 or x2
-		-- y2=y2>129 and y2-129 or y2<-2 and y2+129 or y2
-			x2=x2>147 and x2-167 or x2<-20 and x2+167 or x2
-			y2=y2>147 and y2-167 or y2<-20 and y2+167 or y2
-		
-		-- if v.size>1.9 then circfill(x2,y2,1,v.c)
-		-- else pset(x2,y2,v.c) end
+		x2=x2>147 and x2-167 or x2<-20 and x2+167 or x2
+		y2=y2>147 and y2-167 or y2<-20 and y2+167 or y2
 		if v.size==4 then
-			
 			if self.is_front then
 				if i%2==0 then
 					spr(64,x2-12,y2-2)
 					sspr(0,48,16,16,x2-8,y2-8,16,16)
-					sspr(16,48,16,16,x2+1,y2-7,16,16)
+					-- sspr(16,48,16,16,x2+1,y2-7,16,16)
+					sspr(16,48,16,16,x2+1,y2-9+i%5,16,16)
 					spr(64,x2+12,y2-3)
+					-- circ(x2,y2,18,11)
 				else
 					sspr(0,48,16,16,x2-3,y2-6,16,16)
-					sspr(0,48,16,16,x2-14,y2-8,16,16)
-					spr(64,x2-2,y2-8)
+					-- sspr(0,48,16,16,x2-14,y2-8,16,16)
+					sspr(0,48,16,16,x2-16+i%3,y2-9+i%3,16,16)
+					-- spr(64,x2-2,y2-8)
+					spr(64,x2-7+i%4,y2-9+i%3)
 					spr(65,x2-17,y2-2)
 					spr(64,x2+9,y2-2)
-					-- circ(x2,y2,18,11)
 				end
-				--[[ fillp(cover_pattern[5])
-				circfill(x2-15,y2+1,9,7)
-				circfill(x2,y2,11,7)
-				circfill(x2+13,y2+2,7,7)
-				fillp() ]]
 			end
 		elseif v.size==3 then
 			if i%2==0 then
@@ -294,26 +283,12 @@ function space:_draw()
 				sspr(16,48,16,16,x2-11,y2-7,16,16)
 				sspr(16,48,16,16,x2-3,y2-8,16,16)
 				spr(64,x2+8,y2-1)
-				
 			end
-			--[[ circfill(x2-15,y2+3,4,7)
-			circfill(x2-7,y2+2,5,7)
-			circfill(x2,y2,7,7)
-			circfill(x2+10,y2+2,5,7) ]]
 		elseif v.size==2 then
 			sspr(16,48,16,16,x2-6,y2-6,16,16)
 			spr(65,x2-8,y2-1)
 			spr(64,x2+4,y2-2)
-			-- circ(x2,y2,14,11)
-			-- circfill(x2-7,y2+1,5,7)
-			-- circfill(x2,y2,6,7)
-			-- circfill(x2+8,y2+1,4,7)
 		elseif v.size<=1 then
-			--[[ pal{[7]=6,[6]=6}
-			spr(66,x2-7,y2-1)
-			spr(64,x2-2,y2-2)
-			spr(65,x2+4,y2-2)
-			pal() ]]
 			if(v.size==0) fillp(cover_pattern[5])
 			if i%2==0 then
 				circfill(x2-5,y2+1,3,6)
@@ -333,12 +308,11 @@ function space:_draw()
 	for v in all(self.particles) do
 		if v.type=="thrust" then
 			-- fillp(cover_pattern[5])
-			-- circfill(v.x,v.y,
-			-- 	sub(ptcl_size_thrust,v.age,_),
-			-- 	tonum(sub(ptcl_thrust_col,v.age,_),0x1))
+			circfill(v.x,v.y,
+				sub(ptcl_size_thrust,v.age,_),
+				tonum(sub(ptcl_thrust_col,v.age,_),0x1))
 			-- pset(v.x,v.y,tonum(sub(ptcl_thrust_col,v.age,_),0x1))
-			pset(v.x,v.y,7)
-			-- circfill(v.x,v.y,sub(ptcl_size_thrust,v.age,_),13)
+			-- pset(v.x,v.y,7)
 			-- fillp()
 			-- v.x+=v.sx-self.spd_x
 			-- v.y+=v.sy+self.spd_y
@@ -358,51 +332,65 @@ function space:_draw()
 			v.sy*=0.93
 			if(v.age>16) del(self.particles,v)
 
-		elseif v.type=="bullet" or v.type=="bomb" then
+		elseif v.type=="enemy_trail" then
+			circfill(v.x,v.y,sub(ptcl_size_enemy,v.age,_),7)
+			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(1.6)-0.8
+			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(1.6)-0.8
+			if(v.age>v.age_max) del(self.particles,v)
+
+		elseif v.type=="bullet" or v.type=="bullet_enemy" then
 			local ox,oy=v.x,v.y
-			-- v.sy+=0.01
-			v.x+=v.sx-self.spd_x
-			v.y+=v.sy+self.spd_y
+			v.x+=v.sx-self.spd_x+self.spd_cx
+			v.y+=v.sy+self.spd_y+self.spd_cy
 			local c=tonum(sub(ptcl_fire_col,1+round(v.age/16),_),0x1)
-			if v.type=="bullet" then
-				line(ox,oy,v.x,v.y,c)
-			else
-				spr(v.spr,v.x-4,v.y-4)
-			end
+			
 			if(v.age>v.age_max or v.x>131 or v.y>131 or v.x<-4 or v.y<-4) del(self.particles,v)
 
-			-- hit test bullet & enemy
-			-- todo: 폭탄 임시 처리해 둔 상태
-			local dmg=(v.type=="bomb") and 100 or 1
-			local dist=(v.type=="bomb") and 9 or 6
-			for j,e in pairs(_enemies.list) do
-				if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then
-					e.hp-=dmg
-					if e.hp<=0 then
-						add_explosion_eff(e.x,e.y,v.sx,v.sy,v.type=="bomb")
-						del(_enemies.list,e)
-						-- sfx(v.type=="bomb" and 0 or 3,3)
-						sfx(3,3)
-						_enemies:add(-140-rndi(5)*10,rndi(8)*10-35)
-					else
-						e.hit_count=4
-						local a=atan2(e.x-v.x,e.y-v.y)
-						add_hit_eff(v.x,v.y,a)
-						sfx(22,3)
+			-- draw & hit test bullet & enemy
+			if v.type=="bullet" then
+				line(ox,oy,v.x,v.y,c)
+				local dist=6
+				for j,e in pairs(_enemies.list) do
+					if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then
+						e.hp-=1
+						if e.hp<=0 then
+							_enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type==2)
+							add_explosion_eff(e.x,e.y,v.sx,v.sy)
+							del(_enemies.list,e)
+							sfx(3,3)
+						else
+							e.hit_count=4
+							local a=atan2(e.x-v.x,e.y-v.y)
+							add_hit_eff(v.x,v.y,a)
+							sfx(22,3)
+						end
+						del(self.particles,v)
 					end
-					del(self.particles,v)
 				end
+			elseif v.type=="bullet_enemy" then
+				circfill(v.x,v.y,1,9+rndi(3))
+				circfill(v.x,v.y,0,8)
+
+				-- todo: 플레이어와 충돌 처리를 하자!
+				local dist=6
+				if abs(v.x-cx)<=dist and abs(v.y-cy)<=dist and get_dist(v.x,v.y,cx,cy)<=dist then
+					_ship.hit_count=8
+					sfx(2,3)
+				end
+
 			end
 
 		elseif v.type=="explosion" then
 			circfill(v.x,v.y,
 				sub(ptcl_size_explosion,v.age,_)*v.size,
 				tonum(sub(ptcl_col_explosion,v.age,_),0x1))
-			v.x+=v.sx-self.spd_x+rnd(1)-0.5
-			v.y+=v.sy+self.spd_y+rnd(1)-0.5
+			-- v.x+=v.sx-self.spd_x+rnd(1)-0.5
+			-- v.y+=v.sy+self.spd_y+rnd(1)-0.5
+			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(1)-0.5
+			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(1)-0.5
 			v.sx*=0.95
 			v.sy*=0.95
-			v.sy+=0.02
+			v.sy+=0.01
 			if(v.age>40) del(self.particles,v)
 
 		elseif v.type=="explosion_dust" then
@@ -440,10 +428,12 @@ function ship:init()
 	self.spd=0
 	self.spd_x=0
 	self.spd_y=0
-	self.spd_max=1.2
+	self.spd_cx=0
+	self.spd_cy=0
+	self.spd_max=0.88
 	self.angle=0
 	self.angle_acc=0
-	self.angle_acc_pow=0.0004
+	self.angle_acc_pow=0.0005
 	self.thrust=0
 	self.thrust_acc=0
 	self.thrust_max=1.4
@@ -516,6 +506,7 @@ function ship:on_update()
 	-- 좌우 키를 이용해서 회전
 	-- if btn(0) then self.angle_acc+=self.angle_acc_pow
 	-- elseif btn(1) then self.angle_acc-=self.angle_acc_pow end
+
 	-- 상하좌우 키를 이용해서 회전
 	local to_angle=self.angle
 	if btn(1) and btn(2) then to_angle=0.125
@@ -527,18 +518,21 @@ function ship:on_update()
 	elseif btn(2) then to_angle=0.25
 	elseif btn(3) then to_angle=0.75 end
 
+	
 	-- 회전 거리가 짧은 쪽으로 회전
 	if abs(to_angle-self.angle)>0.02 then
-		local da1=self.angle-to_angle
-		local da2=to_angle-self.angle
-		da1=da1<0 and da1+1 or da1
-		da2=da2<0 and da2+1 or da2
-		if da1>da2 then self.angle_acc+=self.angle_acc_pow
-		else self.angle_acc-=self.angle_acc_pow end
+		self.angle_acc+=self.angle_acc_pow*get_rotate_dir(self.angle,to_angle)
+		-- local da1=self.angle-to_angle
+		-- local da2=to_angle-self.angle
+		-- da1=da1<0 and da1+1 or da1
+		-- da2=da2<0 and da2+1 or da2
+		-- if da1>da2 then self.angle_acc+=self.angle_acc_pow
+		-- else self.angle_acc-=self.angle_acc_pow end
 	else
 		self.angle=to_angle
 		self.angle_acc=0
 	end
+	
 
 	local a=self.angle+self.angle_acc
 	self.angle=a>1 and a-1 or a<0 and a+1 or a
@@ -571,9 +565,10 @@ function ship:on_update()
 	if btn(4) and self.fire_intv<=0 then
 		sfx(24,-1)
 		self.fire_intv=self.fire_intv_full
-		local fire_spd_x=cos(self.angle)*self.fire_spd+self.spd_x
-		local fire_spd_y=sin(self.angle)*self.fire_spd+self.spd_y
-		add(_space_f.particles,
+		local a=self.angle+rnd()*0.014-0.007
+		local fire_spd_x=cos(a)*self.fire_spd+self.spd_x
+		local fire_spd_y=sin(a)*self.fire_spd+self.spd_y
+		add(_space.particles,
 		{
 			type="bullet",
 			x=self.head.x,
@@ -606,7 +601,7 @@ function ship:on_update()
 		self.bomb_intv=self.bomb_intv_full
 		local fire_spd_x=cos(self.angle)*self.bomb_spd+self.spd_x
 		local fire_spd_y=sin(self.angle)*self.bomb_spd+self.spd_y
-		add(_space_f.particles,
+		add(_space.particles,
 		{
 			type="bomb",
 			x=self.head.x,
@@ -622,7 +617,7 @@ function ship:on_update()
 	-- add effect
 	-- 항상 엔진음, 분사효과 출력
 	if(f%6==0) sfx(4,2)
-	add(_space_f.particles,
+	add(_space.particles,
 		{
 			type="thrust",
 			-- x=self.tail.x-2+rnd(4),
@@ -684,8 +679,6 @@ function ship:on_update()
 			self.spd_x=sx*1.2
 			self.spd_y=sy*1.2
 
-			
-
 			sfx(2,3)
 			self.hit_count=8
 			e.hit_count=8
@@ -702,8 +695,10 @@ function ship:on_update()
 	_space_f.spd_y=-self.spd_y
 	
 	-- space center move(use space speed & ship direction)
-	local tcx=64-self.spd_x*14-cos(self.angle)*10
-	local tcy=64-self.spd_y*14-sin(self.angle)*10
+	local tcx=64-self.spd_x*8-cos(self.angle)*10
+	local tcy=64-self.spd_y*8-sin(self.angle)*10
+	_space.spd_cx=(tcx-cx)*0.12
+	_space.spd_cy=(tcy-cy)*0.12
 	cx=cx+(tcx-cx)*0.12
 	cy=cy+(tcy-cy)*0.12
 end
@@ -717,26 +712,79 @@ function enemies:init(enemies_num)
 	for i=1,enemies_num do
 		local x=cos(i/enemies_num)
 		local y=sin(i/enemies_num)
-		self:add(x*70,y*70)
-		self:add(x*100,y*100)
+		self:add(x*100,y*100,i==enemies_num)
 	end
-
 	self:show(true)
 end
 function enemies:_draw()
-	--for i,e in pairs(self.list) do
-	for e in all(self.list) do
+	for i,e in pairs(self.list) do
+	-- for e in all(self.list) do
 		e.space_x+=e.spd_x-_space.spd_x
 		e.space_y+=e.spd_y+_space.spd_y
 		e.x=e.space_x+cx
 		e.y=e.space_y+cy
-		e.spd_x+=e.acc_x
-		e.spd_y+=e.acc_y
-		e.spd_x*=0.99
-		e.spd_y*=0.99
+		-- e.spd_x+=e.acc_x
+		-- e.spd_y+=e.acc_y
+		-- e.spd_x*=0.99
+		-- e.spd_y*=0.99
 
-		e.spd_x=0.2+rnd()*0.4 -- 임시로 순항속도 설정
+
+		-- 정기적으로 회전 방향 업데이트
+		if (f+i*8)%60==0 then
+			local to_angle=atan2(cx-e.x,cy-e.y)
+			if value_loop_0to1(e.angle-to_angle)>0.1 then
+				e.angle_acc=0.003*get_rotate_dir(e.angle,to_angle)
+				-- line(e.x,e.y,cx,cy,8)
+			else
+				e.angle_acc=0
+				if e.x>0 and e.y>0 and e.x<127 and e.y<127 then
+					sfx(25,-1)
+					add(_space.particles,
+					{
+						type="bullet_enemy",
+						x=e.x+e.spd_x*20,
+						y=e.y+e.spd_y*20,
+						sx=e.spd_x*1.7,
+						sy=e.spd_y*1.7,
+						age_max=100,
+						age=1
+					})
+				end
+				-- line(e.x,e.y,cx,cy,11)
+			end
+		end
+
+		e.angle=value_loop_0to1(e.angle+e.angle_acc)
+		e.spd_x=cos(e.angle)*e.spd
+		e.spd_y=sin(e.angle)*e.spd
+
+		if f%2==0 then
+			add(_space.particles,
+			{
+				type="enemy_trail",
+				x=e.x-e.spd_x*14,
+				y=e.y-e.spd_y*14,
+				sx=-e.spd_x*1.8,
+				sy=-e.spd_y*1.8,
+				age_max=14,
+				age=1
+			})
+		end
+
+
+		-- 화면 밖으로 멀어지면 가까운 곳으로 옮김(플레이어 방향 고려)
+		if e.x<-150 or e.y<-150 or e.x>277 or e.y>277 then
+			local a=_ship.angle+rnd()*0.1-0.05
+			local x=cos(a)*130
+			local y=sin(a)*130
+			e.space_x=x
+			e.space_y=y
+			e.x=x+cx
+			e.y=y+cy
+		end
+
 		
+		if(e.type==2) pal{[11]=8}
 		if e.x<-4 then
 			spr(80,0,clamp(e.y-4,4,118))
 		elseif e.x>131 then
@@ -749,11 +797,13 @@ function enemies:_draw()
 			if e.hit_count>0 then
 				e.hit_count-=1
 				pal({6,6,6,6,6,7,7,6,7,7,7,7,7,7,7,6})
-				spr(8,e.x-8,e.y-8,2,2)
+				local s=get_spr(e.angle)
+				spr(s.spr,e.x-8,e.y-8,2,2,s.fx,s.fy)
 			else
 				if(e.type==2) pal({[3]=8,[15]=9,[5]=4})
-				if f%6<3 then palt(7,true) end
-				spr(8,e.x-8,e.y-8,2,2)
+				if f%6<3 then palt(7,true) pal{[10]=7} else palt(10,true) end
+				local s=get_spr(e.angle)
+				spr(s.spr,e.x-8,e.y-8,2,2,s.fx,s.fy)
 			end
 		end
 		pal()
@@ -802,17 +852,19 @@ function enemies:_draw()
 	end ]]
 
 end
-function enemies:add(x,y)
-	local hp,type=1,1
-	if(rnd()>0.9) hp,type=10,2
-		
+function enemies:add(x,y,is_red)
+	local hp,type,spd=1,1,0.5
+	if(is_red) hp,type,spd=10,2,0.73
 	local e={
 		x=0,
 		y=0,
-		spd_x=(rnd(1)-0.5)/4,
-		spd_y=(rnd(1)-0.5)/4,
+		spd=spd,
+		spd_x=0,
+		spd_y=0,
 		acc_x=0,
 		acc_y=0,
+		angle=rnd(),
+		angle_acc=0,
 		space_x=x,
 		space_y=y,
 		hp=hp,
@@ -832,10 +884,20 @@ end
 -- 	return true
 -- end
 
+-- 회전할 방향 구하기(반시계 1, 시계 -1)
+function get_rotate_dir(from,to)
+	from=value_loop_0to1(from)
+	to=value_loop_0to1(to)
+	local da1=from-to
+	local da2=to-from
+	da1=da1<0 and da1+1 or da1
+	da2=da2<0 and da2+1 or da2
+	return da1>da2 and 1 or -1
+end
+
 -- enemy airplane sprites
 function get_spr(angle)
 	local s,fx,fy=0,false,false
-	-- angle=value_loop(angle,0,1)+0.0312
 	angle=value_loop_0to1(angle)+0.0312
 	if angle<0.0625 then s=8 -- right
 	elseif angle<0.125 then s=6
@@ -898,13 +960,13 @@ function get_dist(x1,y1,x2,y2)
 	return sqrt((x2-x1)^2+(y2-y1)^2)
 end
 
-function add_explosion_eff(x,y,spd_x,spd_y,is_bomb)
-	local count=is_bomb and 32 or 16
+function add_explosion_eff(x,y,spd_x,spd_y)
+	local count=24
 	for i=1,count do
 		local sx=cos(i/count+rnd()*0.1)
 		local sy=sin(i/count+rnd()*0.1)
 		if is_bomb then sx*=1.6 sy*=1.6 end
-		add(_space_f.particles,
+		add(_space.particles,
 		{
 			type="explosion",
 			x=x+rnd(6)-3,
@@ -914,7 +976,7 @@ function add_explosion_eff(x,y,spd_x,spd_y,is_bomb)
 			size=is_bomb and 1.5 or 1,
 			age=1+rndi(16)
 		})
-		add(_space_f.particles,
+		add(_space.particles,
 		{
 			type="explosion_dust",
 			x=x+rnd(4)-2,
@@ -927,11 +989,10 @@ function add_explosion_eff(x,y,spd_x,spd_y,is_bomb)
 end
 function add_hit_eff(x,y,angle)
 	for i=1,8 do
-		--local a=angle+round(i/8)/2-0.25
 		local a=angle+round(i/8)*0.8-0.4
 		local sx=cos(a)
 		local sy=sin(a)
-		add(_space_f.particles,
+		add(_space.particles,
 		{
 			type="hit",
 			x=x+rnd(4)-2,
@@ -956,11 +1017,11 @@ stage=sprite.new() -- scene graph top level object
 cx,cy=64,64 -- space center
 
 function _init()
-	--music(13,2000,2)
+	-- music(18,1000,4)
 
 	_space=space.new()
 	_ship=ship.new()
-	_enemies=enemies.new(4)
+	_enemies=enemies.new(6)
 		
 	stage:add_child(_space)
 	stage:add_child(_ship)
