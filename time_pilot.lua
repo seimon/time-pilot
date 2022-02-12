@@ -1,6 +1,6 @@
 dev=0
-ver="0.23"
-latest_update="2022/02/11"
+ver="0.24"
+latest_update="2022/02/12"
 
 poke(0X5F5C, 12) poke(0X5F5D, 3) -- Input Delay(default 15, 4)
 poke(0x5f2d, 0x1) -- Use Mouse input
@@ -168,7 +168,7 @@ function clamp(a,min_v,max_v) return min(max(a,min_v),max_v) end
 function rndf(lo,hi) return lo+rnd()*(hi-lo) end -- random real number between lo and hi
 function rndi(n) return round(rnd()*n) end -- random int
 function printa(t,x,y,c,align) -- 0.5 center, 1 right align
-	x-=align*4*#t
+	x-=align*4*#(tostr(t))
 	print(t,x,y,c)
 end
 
@@ -195,7 +195,9 @@ function space:init(is_front)
 		}
 	end
 	if is_front then
-		for i=1,4 do add(self.stars,make_star(i,1.2,3,4)) end
+		-- for i=1,4 do add(self.stars,make_star(i,1.2,3,4)) end
+		for i=1,2 do add(self.stars,make_star(i,2.3,4,4)) end
+		for i=1,2 do add(self.stars,make_star(i,4,6,4)) end
 	else
 		for i=1,4 do add(self.stars,make_star(i,0.1,0.3,0)) end
 		for i=1,6 do add(self.stars,make_star(i,0.3,0.5,1)) end
@@ -210,7 +212,8 @@ end
 -- ptcl_size_enemy="0011221211211110101000"
 ptcl_size_enemy="010111010100"
 -- ptcl_size_thrust="111223332332222222111111110000"
-ptcl_size_thrust="0001111122223333344443333322222111111110000"
+-- ptcl_size_thrust="0001111122223333344443333322222111111110000"
+ptcl_size_thrust="001011212222121211111110101000000" -- smaller
 -- ptcl_thrust_col="c77aa99882211211" -- 우주
 ptcl_thrust_col="777aa99ee8844d4dd6d666" -- 대기
 ptcl_back_col="77666dd1d111"
@@ -242,6 +245,16 @@ function space:_draw()
 		fillp()
 	end ]]
 
+	-- 하단 그라데이션
+	if not self.is_front then
+		for i=0,8 do
+			fillp(cover_pattern[9-i])
+			local y=(cy+64)/2+66
+			rectfill(0,y-(i+1)*5,127,y-i*5,13)
+		end
+		fillp()
+	end
+
 	-- stars
 	for i,v in pairs(self.stars) do
 	-- for v in all(self.stars) do
@@ -255,49 +268,70 @@ function space:_draw()
 		y2=y2>147 and y2-167 or y2<-20 and y2+167 or y2
 		if v.size==4 then
 			if self.is_front then
+				-- fillp(cover_pattern[5])
 				if i%2==0 then
-					spr(64,x2-12,y2-2)
+					spr(67,x2-17,y2-2)
+					spr(64,x2-12,y2-4)
 					sspr(0,48,16,16,x2-8,y2-8,16,16)
-					-- sspr(16,48,16,16,x2+1,y2-7,16,16)
-					sspr(16,48,16,16,x2+1,y2-9+i%5,16,16)
-					spr(64,x2+12,y2-3)
-					-- circ(x2,y2,18,11)
+					spr(64,x2+5,y2-3)
+					--[[ spr(64,x2-12,y2-2)
+					sspr(0,48,16,16,x2-8,y2-8,16,16)
+					sspr(16,48,16,16,x2+1,y2-7,16,16)
+					spr(64,x2+12,y2-3) ]]
+					-- circfill(x2-10,y2,5,7)
+					-- circfill(x2,y2-1,8,7)
+					-- circfill(x2+8,y2-1,5,7)
+					-- circfill(x2+14,y2+1,4,7)
 				else
+					spr(64,x2-10,y2)
+					spr(66,x2-6,y2-4)
 					sspr(0,48,16,16,x2-3,y2-6,16,16)
-					-- sspr(0,48,16,16,x2-14,y2-8,16,16)
-					sspr(0,48,16,16,x2-16+i%3,y2-9+i%3,16,16)
-					-- spr(64,x2-2,y2-8)
-					spr(64,x2-7+i%4,y2-9+i%3)
+					spr(64,x2+9,y2-1)
+					--[[ sspr(0,48,16,16,x2-3,y2-6,16,16)
+					sspr(0,48,16,16,x2-14,y2-8,16,16)
 					spr(65,x2-17,y2-2)
-					spr(64,x2+9,y2-2)
+					spr(64,x2+9,y2-2) ]]
+					-- circfill(x2-13,y2+2,4,7)
+					-- circfill(x2-5,y2-1,7,7)
+					-- circfill(x2+3,y2,8,7)
+					-- circfill(x2+13,y2+1,5,7)
 				end
+				-- fillp()
 			end
 		elseif v.size==3 then
 			if i%2==0 then
-				spr(65,x2-13,y2-3)
+				--[[ spr(65,x2-13,y2-3)
 				sspr(0,48,16,16,x2-10,y2-8,16,16)
 				sspr(16,48,16,16,x2-2,y2-6,16,16)
-				spr(64,x2+10,y2-4)
+				spr(64,x2+10,y2-4) ]]
+				spr(65,x2-4,y2-3)
+				sspr(16,48,16,16,x2-2,y2-7,16,16)
+				spr(64,x2+9,y2-4)
+				spr(65,x2+14,y2-2)
 			else
-				spr(65,x2-13,y2-3)
+				--[[ spr(65,x2-13,y2-3)
 				sspr(16,48,16,16,x2-11,y2-7,16,16)
 				sspr(16,48,16,16,x2-3,y2-8,16,16)
-				spr(64,x2+8,y2-1)
+				spr(64,x2+8,y2-1) ]]
+				spr(65,x2-8,y2-2)
+				sspr(16,48,16,16,x2-5,y2-7,16,16)
+				spr(64,x2+6,y2-2)
 			end
 		elseif v.size==2 then
-			sspr(16,48,16,16,x2-6,y2-6,16,16)
-			spr(65,x2-8,y2-1)
-			spr(64,x2+4,y2-2)
+			-- sspr(16,48,16,16,x2-6,y2-6,16,16)
+			spr(65,x2-4,y2-2)
+			spr(64,x2,y2-2)
+			spr(66,x2+6,y2-1)
 		elseif v.size<=1 then
 			if(v.size==0) fillp(cover_pattern[5])
 			if i%2==0 then
-				circfill(x2-5,y2+1,3,6)
+				circfill(x2-5,y2+1,2,6)
 				circfill(x2,y2,4,6)
-				circfill(x2+6,y2+2,2,6)
+				circfill(x2+6,y2+1,2,6)
 			else
-				circfill(x2-7,y2+1,2,6)
-				circfill(x2,y2,5,6)
-				circfill(x2+7,y2+1,3,6)
+				circfill(x2-5,y2+1,2,6)
+				circfill(x2,y2,3,6)
+				circfill(x2+4,y2+1,2,6)
 			end
 			fillp()
 		end
@@ -308,18 +342,16 @@ function space:_draw()
 	for v in all(self.particles) do
 		if v.type=="thrust" then
 			-- fillp(cover_pattern[5])
-			circfill(v.x,v.y,
-				sub(ptcl_size_thrust,v.age,_),
-				tonum(sub(ptcl_thrust_col,v.age,_),0x1))
+			-- circfill(v.x,v.y,
+			-- 	sub(ptcl_size_thrust,v.age,_),
+			-- 	tonum(sub(ptcl_thrust_col,v.age,_),0x1))
 			-- pset(v.x,v.y,tonum(sub(ptcl_thrust_col,v.age,_),0x1))
-			-- pset(v.x,v.y,7)
+			pset(v.x,v.y,7)
 			-- fillp()
-			-- v.x+=v.sx-self.spd_x
-			-- v.y+=v.sy+self.spd_y
-			v.x+=v.sx-self.spd_x+rnd(2)-1
-			v.y+=v.sy+self.spd_y+rnd(2)-1
-			-- v.sx*=0.94
-			-- v.sy*=0.94
+			v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
+			v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
+			-- v.sx*=1.04
+			-- v.sy*=1.04
 			if(v.age>v.age_max) del(self.particles,v)
 
 		elseif v.type=="thrust-back" then
@@ -333,9 +365,9 @@ function space:_draw()
 			if(v.age>16) del(self.particles,v)
 
 		elseif v.type=="enemy_trail" then
-			circfill(v.x,v.y,sub(ptcl_size_enemy,v.age,_),7)
-			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(1.6)-0.8
-			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(1.6)-0.8
+			pset(v.x,v.y,7)
+			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(0.6)-0.3
+			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(0.6)-0.3
 			if(v.age>v.age_max) del(self.particles,v)
 
 		elseif v.type=="bullet" or v.type=="bullet_enemy" then
@@ -351,10 +383,15 @@ function space:_draw()
 				line(ox,oy,v.x,v.y,c)
 				local dist=6
 				for j,e in pairs(_enemies.list) do
+					if(e.type==4) goto continue
+					if(e.type==3) dist=8
 					if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then
 						e.hp-=1
 						if e.hp<=0 then
-							_enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type==2)
+							if(e.type==1) ui.kill_1+=1
+							if(e.type==2) ui.kill_2+=1
+							if(e.type==3) ui.kill_3+=1
+							_enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type)
 							add_explosion_eff(e.x,e.y,v.sx,v.sy)
 							del(_enemies.list,e)
 							sfx(3,3)
@@ -366,30 +403,30 @@ function space:_draw()
 						end
 						del(self.particles,v)
 					end
+					::continue::
 				end
+
 			elseif v.type=="bullet_enemy" then
 				circfill(v.x,v.y,1,9+rndi(3))
 				circfill(v.x,v.y,0,8)
 
 				-- todo: 플레이어와 충돌 처리를 하자!
-				local dist=6
+
+				local dist=5
 				if abs(v.x-cx)<=dist and abs(v.y-cy)<=dist and get_dist(v.x,v.y,cx,cy)<=dist then
 					_ship.hit_count=8
 					sfx(2,3)
 				end
-
 			end
 
-		elseif v.type=="explosion" then
+		elseif v.type=="explosion" or v.type=="explosion_white" then
+			local c=(v.type=="explosion_white") and 7 or tonum(sub(ptcl_col_explosion,v.age,_),0x1)
 			circfill(v.x,v.y,
-				sub(ptcl_size_explosion,v.age,_)*v.size,
-				tonum(sub(ptcl_col_explosion,v.age,_),0x1))
-			-- v.x+=v.sx-self.spd_x+rnd(1)-0.5
-			-- v.y+=v.sy+self.spd_y+rnd(1)-0.5
+				sub(ptcl_size_explosion,v.age,_)*v.size,c)
 			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(1)-0.5
 			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(1)-0.5
-			v.sx*=0.95
-			v.sy*=0.95
+			v.sx*=0.92
+			v.sy*=0.92
 			v.sy+=0.01
 			if(v.age>40) del(self.particles,v)
 
@@ -411,7 +448,11 @@ function space:_draw()
 			v.sx*=0.94
 			v.sy*=0.94
 			if(v.age>12) del(self.particles,v)
-
+		
+		elseif v.type=="circle" then
+			v.size+=0.7
+			circ(cx,cy,v.size,8+rndi(7))
+			if(v.age>32) del(self.particles,v)
 		end
 		v.age+=1
 	end
@@ -430,16 +471,17 @@ function ship:init()
 	self.spd_y=0
 	self.spd_cx=0
 	self.spd_cy=0
-	self.spd_max=0.88
+	-- self.spd_max=0.88
+	self.spd_max=0.8
 	self.angle=0
 	self.angle_acc=0
-	self.angle_acc_pow=0.0005
+	self.angle_acc_pow=0.0004
 	self.thrust=0
 	self.thrust_acc=0
 	self.thrust_max=1.4
 	self.tail={x=0,y=0}
 	self.head={x=0,y=0}
-	self.fire_spd=2.4 -- 1.4 -> 3.0
+	self.fire_spd=1.8 -- 1.4 -> 3.0
 	self.fire_intv=0
 	self.fire_intv_full=8 -- 20 -> 5
 	self.bomb_spd=0.7
@@ -486,19 +528,15 @@ function ship:_draw()
 		pal({6,6,6,6,6,7,7,6,7,7,7,7,7,7,7,6})
 		self.hit_count-=1
 	end
-	-- if f%6<3 then palt(7,true) end
-	-- local s=get_spr(self.angle)
-	-- spr(s.spr,cx-8,cy-8,2,2,s.fx,s.fy)
-	-- pal()
-	-- line(cx,cy,cx+x0*60,cy+y0*60,9)
 	local s=get_spr2(self.angle)
-	sspr(s.x,s.y,13,15,cx-6,cy-6,13,15,s.fx,s.fy)
-	-- circ(cx,cy,8,11)
+	-- sspr(s.x,s.y,13,15,cx-6,cy-6,13,15,s.fx,s.fy)
+	sspr(s.x,s.y,13,15,cx-4,cy-4,13*0.7,15*0.7,s.fx,s.fy) -- 스케일 줄여 봄
+	-- circ(cx,cy,6,11)
 
-	self.tail.x=cx-x0*10
-	self.tail.y=cy-y0*10
-	self.head.x=cx+x0*10
-	self.head.y=cy+y0*10
+	self.tail.x=cx-x0*7
+	self.tail.y=cy-y0*7
+	self.head.x=cx+x0*7
+	self.head.y=cy+y0*7
 end
 function ship:on_update()
 	
@@ -563,9 +601,10 @@ function ship:on_update()
 	-- fire
 	self.fire_intv-=1
 	if btn(4) and self.fire_intv<=0 then
-		sfx(24,-1)
+		-- sfx(24,-1)
+		sfx(1,-1)
 		self.fire_intv=self.fire_intv_full
-		local a=self.angle+rnd()*0.014-0.007
+		local a=self.angle+rnd()*0.016-0.008
 		local fire_spd_x=cos(a)*self.fire_spd+self.spd_x
 		local fire_spd_y=sin(a)*self.fire_spd+self.spd_y
 		add(_space.particles,
@@ -622,11 +661,11 @@ function ship:on_update()
 			type="thrust",
 			-- x=self.tail.x-2+rnd(4),
 			-- y=self.tail.y-2+rnd(4),
-			x=self.tail.x-1+rnd(2),
-			y=self.tail.y-1+rnd(2),
-			sx=-self.spd_x*1.1,
-			sy=-self.spd_y*1.1,
-			age_max=30,
+			x=self.tail.x+rnd(0.6)-0.3,
+			y=self.tail.y+rnd(0.6)-0.3,
+			sx=-self.spd_x*1.5,
+			sy=-self.spd_y*1.5,
+			age_max=50,
 			age=1
 		})
 
@@ -670,21 +709,25 @@ function ship:on_update()
 	-- hit test with enemies
 	-- for i,e in pairs(_enemies.list) do
 	for e in all(_enemies.list) do
-		if abs(e.x-cx)<=8 and abs(e.y-cy)<=8 and get_dist(e.x,e.y,cx,cy)<=8 then	
-			-- simply speed change(don't consider hit direction)
-			local sx=e.spd_x
-			local sy=e.spd_y
-			e.spd_x=self.spd_x*1.2
-			e.spd_y=self.spd_y*1.2
-			self.spd_x=sx*1.2
-			self.spd_y=sy*1.2
-
-			sfx(2,3)
-			self.hit_count=8
-			e.hit_count=8
-			e.hp-=1
-			local d=atan2(e.x-cx,e.y-cy)
-			add_hit_eff((cx+e.x)/2,(cy+e.y)/2,d)
+		local dist=(e.type==4) and 10 or (e.type==3) and 8 or 6
+		if abs(e.x-cx)<=dist and abs(e.y-cy)<=dist and get_dist(e.x,e.y,cx,cy)<=dist then
+			if e.type==4 then
+				-- 낙하산 먹기
+				-- todo:좀 다듬어야 함....
+				sfx(32,3)
+				_enemies:add(rndi(227)-50,-150,4)
+				
+				del(_enemies.list,e)
+				add(_space.particles,{type="circle",size=3,age=1})
+				add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
+			else
+				sfx(2,3)
+				self.hit_count=8
+				e.hit_count=8
+				e.hp-=1
+				local d=atan2(e.x-cx,e.y-cy)
+				add_hit_eff((cx+e.x)/2,(cy+e.y)/2,d)
+			end
 		end
 	end
 
@@ -712,68 +755,101 @@ function enemies:init(enemies_num)
 	for i=1,enemies_num do
 		local x=cos(i/enemies_num)
 		local y=sin(i/enemies_num)
-		self:add(x*100,y*100,i==enemies_num)
+		self:add(x*100,y*100,(i==enemies_num)and 3 or (i==enemies_num-1) and 2 or nil)
 	end
+	self:add(64,-50,4)
 	self:show(true)
 end
+
 function enemies:_draw()
 	for i,e in pairs(self.list) do
-	-- for e in all(self.list) do
 		e.space_x+=e.spd_x-_space.spd_x
 		e.space_y+=e.spd_y+_space.spd_y
 		e.x=e.space_x+cx
 		e.y=e.space_y+cy
-		-- e.spd_x+=e.acc_x
-		-- e.spd_y+=e.acc_y
-		-- e.spd_x*=0.99
-		-- e.spd_y*=0.99
-
 
 		-- 정기적으로 회전 방향 업데이트
-		if (f+i*8)%60==0 then
-			local to_angle=atan2(cx-e.x,cy-e.y)
-			if value_loop_0to1(e.angle-to_angle)>0.1 then
-				e.angle_acc=0.003*get_rotate_dir(e.angle,to_angle)
-				-- line(e.x,e.y,cx,cy,8)
-			else
-				e.angle_acc=0
-				if e.x>0 and e.y>0 and e.x<127 and e.y<127 then
-					sfx(25,-1)
-					add(_space.particles,
-					{
-						type="bullet_enemy",
-						x=e.x+e.spd_x*20,
-						y=e.y+e.spd_y*20,
-						sx=e.spd_x*1.7,
-						sy=e.spd_y*1.7,
-						age_max=100,
-						age=1
-					})
+		if e.type==1 or e.type==2 then
+			if (f+i*8)%60==0 then
+				local to_angle=atan2(cx-e.x,cy-e.y)
+				local angle_dist=value_loop_0to1(e.angle-to_angle)
+				if angle_dist>0.2 then
+					e.angle_acc=0.0022*get_rotate_dir(e.angle,to_angle)
+				else
+					e.angle_acc=0
 				end
-				-- line(e.x,e.y,cx,cy,11)
+				
+				-- 전방에 보인다 싶으면 공격
+				if angle_dist<0.2 then
+					if e.x>0 and e.y>0 and e.x<127 and e.y<127 then
+						sfx(25,-1)
+						add(_space.particles,
+						{
+							type="bullet_enemy",
+							x=e.x+e.spd_x*16,
+							y=e.y+e.spd_y*16,
+							sx=cos(e.angle)*0.8,
+							sy=sin(e.angle)*0.8,
+							age_max=120,
+							age=1
+						})
+					end
+					-- line(e.x,e.y,cx,cy,11)
+				end
+			end
+		elseif e.type==3 then
+			-- 전방위 공격
+			if e.x>0 and e.y>0 and e.x<127 and e.y<127 and f%60==0 then
+				local to_angle=atan2(cx-e.x,cy-e.y)+rnd(0.08)-0.04
+				local sx,sy=cos(to_angle)*0.7,sin(to_angle)*0.7
+				sfx(25,-1)
+				add(_space.particles,
+				{
+					type="bullet_enemy",
+					x=e.x+sx*12,
+					y=e.y+sy*12,
+					sx=sx,
+					sy=sy,
+					age_max=120,
+					age=1
+				})
 			end
 		end
 
-		e.angle=value_loop_0to1(e.angle+e.angle_acc)
-		e.spd_x=cos(e.angle)*e.spd
-		e.spd_y=sin(e.angle)*e.spd
+		-- 방향에 맞게 속도 설정
+		if e.type==4 then
+			e.spd_x=sin(f/100)*0.5
+			e.spd_y=0.2
+		else
+			e.angle=value_loop_0to1(e.angle+e.angle_acc)
+			e.spd_x=cos(e.angle)*e.spd
+			e.spd_y=sin(e.angle)*e.spd
+		end
 
-		if f%2==0 then
+		-- 타입에 맞는 트레일 추가
+		if f%3==0 and e.type!=4 then
+			local x,y=e.x-e.spd_x*12,e.y-e.spd_y*12
+			local sx,sy=-e.spd_x*1.8,-e.spd_y*1.8
+			if e.type==3 then
+				x,y=e.x-9
+				y=e.y+rnd()
+				sx=-0.9
+				sy=0
+			end
 			add(_space.particles,
 			{
 				type="enemy_trail",
-				x=e.x-e.spd_x*14,
-				y=e.y-e.spd_y*14,
-				sx=-e.spd_x*1.8,
-				sy=-e.spd_y*1.8,
+				x=x,
+				y=y,
+				sx=sx,
+				sy=sy,
 				age_max=14,
 				age=1
 			})
 		end
 
-
 		-- 화면 밖으로 멀어지면 가까운 곳으로 옮김(플레이어 방향 고려)
-		if e.x<-150 or e.y<-150 or e.x>277 or e.y>277 then
+		if e.x<-100 or e.y<-100 or e.x>227 or e.y>227 then
 			local a=_ship.angle+rnd()*0.1-0.05
 			local x=cos(a)*130
 			local y=sin(a)*130
@@ -782,48 +858,52 @@ function enemies:_draw()
 			e.x=x+cx
 			e.y=y+cy
 		end
-
 		
 		if(e.type==2) pal{[11]=8}
+		if(e.type==3) pal{[11]=10}
+		-- if(e.type==4) pal{[11]=12} -- 잘 안 보이게(...)
 		if e.x<-4 then
-			spr(80,0,clamp(e.y-4,4,118))
+			spr(80,0,clamp(e.y-4,4,118-7))
 		elseif e.x>131 then
-			spr(80,120,clamp(e.y-4,4,118),1,1,true)
+			spr(80,120,clamp(e.y-4,4,118-7),1,1,true)
 		elseif e.y<-4 then
 			spr(81,clamp(e.x-4,4,118),0)
-		elseif e.y>131 then
-			spr(81,clamp(e.x-4,4,118),120,1,1,false,true)
+		elseif e.y>131-7 then
+			spr(81,clamp(e.x-4,4,118),120-7,1,1,false,true)
 		else
 			if e.hit_count>0 then
 				e.hit_count-=1
 				pal({6,6,6,6,6,7,7,6,7,7,7,7,7,7,7,6})
-				local s=get_spr(e.angle)
-				spr(s.spr,e.x-8,e.y-8,2,2,s.fx,s.fy)
 			else
 				if(e.type==2) pal({[3]=8,[15]=9,[5]=4})
-				if f%6<3 then palt(7,true) pal{[10]=7} else palt(10,true) end
+				if f%6<3 then palt(12,true) pal{[10]=7} else palt(10,true) pal{[12]=7} end
+			end
+
+			if e.type==4 then
+				pal()
+				sspr(40,32,9,5,e.x-4,e.y-4)
+				if abs(e.spd_x)>0.3 then
+					sspr(40,37,9,3,e.x-4,e.y+1)
+					rect(e.x-1,e.y+4,e.x+1,e.y+5,2)
+				elseif e.spd_x<0 then
+					sspr(49,37,9,3,e.x-3,e.y+1)
+					rect(e.x-2,e.y+4,e.x,e.y+5,2)
+				else
+					sspr(49,37,9,3,e.x-5,e.y+1,9,3,true)
+					rect(e.x,e.y+4,e.x+2,e.y+5,2)
+				end
+				-- circ(e.x,e.y,12,11)
+			elseif e.type==3 then
+				spr(32,e.x-7,e.y-7,2,2)
+			else
 				local s=get_spr(e.angle)
-				spr(s.spr,e.x-8,e.y-8,2,2,s.fx,s.fy)
+				sspr(s.spr*8,0,16,16,e.x-4,e.y-4,16*0.6,16*0.6,s.fx,s.fy)
 			end
 		end
 		pal()
 
 
 	end
-
-	-- head to ship
-	--[[ for e in all(self.list) do
-		e.think_count-=1
-		if e.think_count<=0 then
-			local a=atan2(cx-e.x,cy-e.y)
-			local sx=cos(a)
-			local sy=sin(a)
-			e.acc_x=sx*0.004
-			e.acc_y=sy*0.004
-			e.think_count=60
-			-- todo: attack ship! *************************
-		end
-	end ]]
 
 	-- hit test between enemies
 	--[[ for i,e1 in pairs(self.list) do
@@ -852,9 +932,11 @@ function enemies:_draw()
 	end ]]
 
 end
-function enemies:add(x,y,is_red)
-	local hp,type,spd=1,1,0.5
-	if(is_red) hp,type,spd=10,2,0.73
+function enemies:add(x,y,t)
+	local hp,type,spd=1,1,0.4
+	if(t==2) hp,type,spd=8,2,0.6
+	if(t==3) hp,type,spd=20,3,0.2
+
 	local e={
 		x=0,
 		y=0,
@@ -863,14 +945,14 @@ function enemies:add(x,y,is_red)
 		spd_y=0,
 		acc_x=0,
 		acc_y=0,
-		angle=rnd(),
+		angle=(type==3) and 0 or rnd(),
 		angle_acc=0,
 		space_x=x,
 		space_y=y,
 		hp=hp,
 		hit_count=0,
-		think_count=120+rndi(120),
-		type=type
+		-- think_count=120+rndi(120),
+		type=t
 	}
 	add(self.list,e)
 end
@@ -960,15 +1042,16 @@ function get_dist(x1,y1,x2,y2)
 	return sqrt((x2-x1)^2+(y2-y1)^2)
 end
 
-function add_explosion_eff(x,y,spd_x,spd_y)
-	local count=24
+function add_explosion_eff(x,y,spd_x,spd_y,is_white)
+	local count=20
 	for i=1,count do
 		local sx=cos(i/count+rnd()*0.1)
 		local sy=sin(i/count+rnd()*0.1)
 		if is_bomb then sx*=1.6 sy*=1.6 end
+		local type=is_white and "explosion_white" or "explosion"
 		add(_space.particles,
 		{
-			type="explosion",
+			type=type,
 			x=x+rnd(6)-3,
 			y=y+rnd(6)-3,
 			sx=sx*(0.5+rnd()*1.2)+spd_x*0.7,
@@ -1006,6 +1089,39 @@ end
 
 
 
+-- <ui> --------------------
+ui={
+	kill_1=0,
+	kill_2=0,
+	kill_3=0,
+}
+ui._draw=function()
+	rectfill(0,121,127,127,0)
+	local v1=tostr(min(9999,ui.kill_1))
+	local v2=tostr(min(9999,ui.kill_2))
+	local v3=tostr(min(9999,ui.kill_3))
+
+	spr(84,1,122)
+	print("000",7,122,1)
+	local n1="" for i=2,#v1 do n1=n1.."0" end
+	printa(n1,19,122,0,1)
+	printa(v1,23,122,6,1)
+
+	pal{[3]=8} spr(84,26,122) pal()
+	print("000",32,122,1)
+	local n2="" for i=2,#v2 do n2=n2.."0" end
+	printa(n2,44,122,0,1)
+	printa(v2,48,122,6,1)
+
+	spr(85,51,122)
+	print("000",58,122,1)
+	local n3="" for i=2,#v3 do n3=n3.."0" end
+	printa(n3,70,122,0,1)
+	printa(v3,74,122,6,1)
+end
+
+
+
 -- <constants> --------------------
 
 
@@ -1020,21 +1136,14 @@ function _init()
 	-- music(18,1000,4)
 
 	_space=space.new()
+	_space_f=space.new(true) -- front layer
 	_ship=ship.new()
-	_enemies=enemies.new(6)
-		
+	_enemies=enemies.new(7)
+	-- _enemies:add(80,64,3)
+
 	stage:add_child(_space)
 	stage:add_child(_ship)
 	stage:add_child(_enemies)
-	--[[ 
-	_enemies={}
-	for i=1,10 do
-		local e=enemy.new(rnd(127)-64,rnd(127)-64)
-		add(_enemies,e)
-		stage:add_child(e)
-	end
- ]]
-	_space_f=space.new(true) -- front layer
 	stage:add_child(_space_f)
 end
 function _update60()
@@ -1047,6 +1156,8 @@ function _draw()
 
 	if(#dim_pal>0) pal(dim_pal,0)
 	stage:render(0,0)
+
+	ui._draw()
 
 	-- 개발용
 	if dev==1 then
