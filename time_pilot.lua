@@ -1,6 +1,6 @@
-dev=0
-ver="0.24"
-latest_update="2022/02/12"
+dev=1
+ver="0.25"
+latest_update="2022/02/13"
 
 poke(0X5F5C, 12) poke(0X5F5D, 3) -- Input Delay(default 15, 4)
 poke(0x5f2d, 0x1) -- Use Mouse input
@@ -415,6 +415,8 @@ function space:_draw()
 				local dist=5
 				if abs(v.x-cx)<=dist and abs(v.y-cy)<=dist and get_dist(v.x,v.y,cx,cy)<=dist then
 					_ship.hit_count=8
+					add_hit_eff(v.x,v.y,atan2(cx-v.x,cy-v.y))
+					del(self.particles,v)
 					sfx(2,3)
 				end
 			end
@@ -714,12 +716,12 @@ function ship:on_update()
 			if e.type==4 then
 				-- 낙하산 먹기
 				-- todo:좀 다듬어야 함....
-				sfx(32,3)
-				_enemies:add(rndi(227)-50,-150,4)
-				
-				del(_enemies.list,e)
+				ui.kill_4+=1
+				sfx(32,-1)
+				_enemies:add(rndi(227)-50,-160,4)
 				add(_space.particles,{type="circle",size=3,age=1})
 				add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
+				del(_enemies.list,e)
 			else
 				sfx(2,3)
 				self.hit_count=8
@@ -849,7 +851,7 @@ function enemies:_draw()
 		end
 
 		-- 화면 밖으로 멀어지면 가까운 곳으로 옮김(플레이어 방향 고려)
-		if e.x<-100 or e.y<-100 or e.x>227 or e.y>227 then
+		if e.x<-120 or e.y<-120 or e.x>247 or e.y>247 then
 			local a=_ship.angle+rnd()*0.1-0.05
 			local x=cos(a)*130
 			local y=sin(a)*130
@@ -892,7 +894,8 @@ function enemies:_draw()
 					sspr(49,37,9,3,e.x-5,e.y+1,9,3,true)
 					rect(e.x,e.y+4,e.x+2,e.y+5,2)
 				end
-				-- circ(e.x,e.y,12,11)
+				-- circ(e.x,e.y,22,11)
+
 			elseif e.type==3 then
 				spr(32,e.x-7,e.y-7,2,2)
 			else
@@ -936,6 +939,7 @@ function enemies:add(x,y,t)
 	local hp,type,spd=1,1,0.4
 	if(t==2) hp,type,spd=8,2,0.6
 	if(t==3) hp,type,spd=20,3,0.2
+	if(t==4) type=4
 
 	local e={
 		x=0,
@@ -951,8 +955,7 @@ function enemies:add(x,y,t)
 		space_y=y,
 		hp=hp,
 		hit_count=0,
-		-- think_count=120+rndi(120),
-		type=t
+		type=type
 	}
 	add(self.list,e)
 end
@@ -1094,30 +1097,43 @@ ui={
 	kill_1=0,
 	kill_2=0,
 	kill_3=0,
+	kill_4=0,
 }
 ui._draw=function()
 	rectfill(0,121,127,127,0)
-	local v1=tostr(min(9999,ui.kill_1))
-	local v2=tostr(min(9999,ui.kill_2))
-	local v3=tostr(min(9999,ui.kill_3))
+	local v1=tostr(min(999,ui.kill_1))
+	local v2=tostr(min(999,ui.kill_2))
+	local v3=tostr(min(999,ui.kill_3))
+	local v4=tostr(min(999,ui.kill_4))
 
 	spr(84,1,122)
-	print("000",7,122,1)
+	print("00",7,122,1)
 	local n1="" for i=2,#v1 do n1=n1.."0" end
-	printa(n1,19,122,0,1)
-	printa(v1,23,122,6,1)
+	printa(n1,15,122,0,1)
+	printa(v1,19,122,6,1)
 
-	pal{[3]=8} spr(84,26,122) pal()
-	print("000",32,122,1)
+	pal{[3]=8} spr(84,22,122) pal()
+	print("00",28,122,1)
 	local n2="" for i=2,#v2 do n2=n2.."0" end
-	printa(n2,44,122,0,1)
-	printa(v2,48,122,6,1)
+	printa(n2,36,122,0,1)
+	printa(v2,40,122,6,1)
 
-	spr(85,51,122)
-	print("000",58,122,1)
+	spr(85,43,122)
+	print("00",50,122,1)
 	local n3="" for i=2,#v3 do n3=n3.."0" end
-	printa(n3,70,122,0,1)
-	printa(v3,74,122,6,1)
+	printa(n3,58,122,0,1)
+	printa(v3,62,122,6,1)
+
+	spr(86,64,122)
+	print("00",70,122,1)
+	local n4="" for i=2,#v4 do n3=n4.."0" end
+	printa(n4,78,122,0,1)
+	printa(v4,82,122,6,1)
+
+
+	if dev==1 then
+		printa("v"..ver,128,122,5,1)
+	end
 end
 
 
