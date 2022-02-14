@@ -1,6 +1,6 @@
 dev=1
-ver="0.25"
-latest_update="2022/02/13"
+ver="0.26"
+latest_update="2022/02/14"
 
 poke(0X5F5C, 12) poke(0X5F5D, 3) -- Input Delay(default 15, 4)
 poke(0x5f2d, 0x1) -- Use Mouse input
@@ -153,10 +153,12 @@ function print_log()
 end
 function print_system_info()
 	local cpu=round(stat(1)*10000)
-	local mem=tostr(stat(0))
+	local mem=tostr(round(stat(0)))
 	local s=(cpu\100).."."..(cpu%100\10)..(cpu%10).."%"
-	printa(s,128,2,0,1) printa(s,127,1,8,1)
-	printa(mem,128,8,0,1) printa(mem,127,7,8,1)
+	-- printa(s,128,2,0,1) printa(s,127,1,8,1)
+	-- printa(mem,128,8,0,1) printa(mem,127,7,8,1)
+	printa(s,128,2,0,1) printa(s,127,1,11,1)
+	printa(mem,98,2,0,1) printa(mem,97,1,11,1)
 end
 
 
@@ -196,8 +198,8 @@ function space:init(is_front)
 	end
 	if is_front then
 		-- for i=1,4 do add(self.stars,make_star(i,1.2,3,4)) end
-		for i=1,2 do add(self.stars,make_star(i,2.3,4,4)) end
-		for i=1,2 do add(self.stars,make_star(i,4,6,4)) end
+		for i=1,2 do add(self.stars,make_star(i,2,2.8,4)) end
+		for i=1,2 do add(self.stars,make_star(i,3,4,4)) end
 	else
 		for i=1,4 do add(self.stars,make_star(i,0.1,0.3,0)) end
 		for i=1,6 do add(self.stars,make_star(i,0.3,0.5,1)) end
@@ -346,12 +348,21 @@ function space:_draw()
 			-- 	sub(ptcl_size_thrust,v.age,_),
 			-- 	tonum(sub(ptcl_thrust_col,v.age,_),0x1))
 			-- pset(v.x,v.y,tonum(sub(ptcl_thrust_col,v.age,_),0x1))
-			pset(v.x,v.y,7)
 			-- fillp()
+
+			-- pset(v.x,v.y,7)
+			-- v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
+			-- v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
+
+			fillp(cover_pattern[10-clamp(flr(v.age*0.38),0,9)])
+			circfill(v.x,v.y,1,7)
+			-- rectfill(v.x-1,v.y-1,v.x+1,v.y+1,7)
+			-- local d=0.5+flr(v.age*0.15)
+			-- rectfill(v.x-d,v.y-d,v.x+d,v.y+d,7)
 			v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
 			v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
-			-- v.sx*=1.04
-			-- v.sy*=1.04
+			fillp()
+
 			if(v.age>v.age_max) del(self.particles,v)
 
 		elseif v.type=="thrust-back" then
@@ -394,12 +405,12 @@ function space:_draw()
 							_enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type)
 							add_explosion_eff(e.x,e.y,v.sx,v.sy)
 							del(_enemies.list,e)
-							sfx(3,3)
+							sfx(3,-1)
 						else
 							e.hit_count=4
 							local a=atan2(e.x-v.x,e.y-v.y)
 							add_hit_eff(v.x,v.y,a)
-							sfx(22,3)
+							sfx(22,-1)
 						end
 						del(self.particles,v)
 					end
@@ -417,7 +428,7 @@ function space:_draw()
 					_ship.hit_count=8
 					add_hit_eff(v.x,v.y,atan2(cx-v.x,cy-v.y))
 					del(self.particles,v)
-					sfx(2,3)
+					sfx(2,-1)
 				end
 			end
 
@@ -452,7 +463,7 @@ function space:_draw()
 			if(v.age>12) del(self.particles,v)
 		
 		elseif v.type=="circle" then
-			v.size+=0.7
+			v.size+=0.6
 			circ(cx,cy,v.size,8+rndi(7))
 			if(v.age>32) del(self.particles,v)
 		end
@@ -535,8 +546,8 @@ function ship:_draw()
 	sspr(s.x,s.y,13,15,cx-4,cy-4,13*0.7,15*0.7,s.fx,s.fy) -- 스케일 줄여 봄
 	-- circ(cx,cy,6,11)
 
-	self.tail.x=cx-x0*7
-	self.tail.y=cy-y0*7
+	self.tail.x=cx-x0*4
+	self.tail.y=cy-y0*4
 	self.head.x=cx+x0*7
 	self.head.y=cy+y0*7
 end
@@ -656,13 +667,11 @@ function ship:on_update()
 	end
 
 	-- add effect
-	-- 항상 엔진음, 분사효과 출력
-	if(f%6==0) sfx(4,2)
+	-- if(f%6==0) sfx(4,1) -- 항상 엔진음, 
+	-- 분사효과
 	add(_space.particles,
 		{
 			type="thrust",
-			-- x=self.tail.x-2+rnd(4),
-			-- y=self.tail.y-2+rnd(4),
 			x=self.tail.x+rnd(0.6)-0.3,
 			y=self.tail.y+rnd(0.6)-0.3,
 			sx=-self.spd_x*1.5,
@@ -723,7 +732,7 @@ function ship:on_update()
 				add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
 				del(_enemies.list,e)
 			else
-				sfx(2,3)
+				sfx(2,-1)
 				self.hit_count=8
 				e.hit_count=8
 				e.hp-=1
@@ -1149,7 +1158,8 @@ stage=sprite.new() -- scene graph top level object
 cx,cy=64,64 -- space center
 
 function _init()
-	-- music(18,1000,4)
+	music(0,nil,3)
+	music(18,1000,3)
 
 	_space=space.new()
 	_space_f=space.new(true) -- front layer
@@ -1168,7 +1178,7 @@ function _update60()
 end
 function _draw()
 	cls(12)
-	pal()
+	-- pal()
 
 	if(#dim_pal>0) pal(dim_pal,0)
 	stage:render(0,0)
