@@ -1,6 +1,6 @@
 dev=1
-ver="0.26"
-latest_update="2022/02/14"
+ver="0.27"
+latest_update="2022/02/16"
 
 poke(0X5F5C, 12) poke(0X5F5D, 3) -- Input Delay(default 15, 4)
 poke(0x5f2d, 0x1) -- Use Mouse input
@@ -211,17 +211,12 @@ function space:init(is_front)
 	self:on("update",self.on_update)
 end
 
--- ptcl_size_enemy="0011221211211110101000"
 ptcl_size_enemy="010111010100"
--- ptcl_size_thrust="111223332332222222111111110000"
--- ptcl_size_thrust="0001111122223333344443333322222111111110000"
 ptcl_size_thrust="001011212222121211111110101000000" -- smaller
--- ptcl_thrust_col="c77aa99882211211" -- 우주
 ptcl_thrust_col="777aa99ee8844d4dd6d666" -- 대기
-ptcl_back_col="77666dd1d111"
+-- ptcl_back_col="77666dd1d111"
 ptcl_fire_col="89a7"
 ptcl_size_explosion="3577767766666555544444333332222221111111000"
--- ptcl_col_explosion="77aaa99988888989994444441111"
 ptcl_col_explosion="77aaa99a99888988999494445555666"
 ptcl_col_explosion_dust="779856"
 ptcl_col_hit="cc7a82"
@@ -257,9 +252,8 @@ function space:_draw()
 		fillp()
 	end
 
-	-- stars
+	-- 구름
 	for i,v in pairs(self.stars) do
-	-- for v in all(self.stars) do
 		local x=v.x-self.spd_x*v.spd
 		local y=v.y+self.spd_y*v.spd
 		v.x=x>147 and x-167 or x<-20 and x+167 or x
@@ -270,57 +264,30 @@ function space:_draw()
 		y2=y2>147 and y2-167 or y2<-20 and y2+167 or y2
 		if v.size==4 then
 			if self.is_front then
-				-- fillp(cover_pattern[5])
 				if i%2==0 then
 					spr(67,x2-17,y2-2)
 					spr(64,x2-12,y2-4)
 					sspr(0,48,16,16,x2-8,y2-8,16,16)
 					spr(64,x2+5,y2-3)
-					--[[ spr(64,x2-12,y2-2)
-					sspr(0,48,16,16,x2-8,y2-8,16,16)
-					sspr(16,48,16,16,x2+1,y2-7,16,16)
-					spr(64,x2+12,y2-3) ]]
-					-- circfill(x2-10,y2,5,7)
-					-- circfill(x2,y2-1,8,7)
-					-- circfill(x2+8,y2-1,5,7)
-					-- circfill(x2+14,y2+1,4,7)
 				else
 					spr(64,x2-10,y2)
 					spr(66,x2-6,y2-4)
 					sspr(0,48,16,16,x2-3,y2-6,16,16)
 					spr(64,x2+9,y2-1)
-					--[[ sspr(0,48,16,16,x2-3,y2-6,16,16)
-					sspr(0,48,16,16,x2-14,y2-8,16,16)
-					spr(65,x2-17,y2-2)
-					spr(64,x2+9,y2-2) ]]
-					-- circfill(x2-13,y2+2,4,7)
-					-- circfill(x2-5,y2-1,7,7)
-					-- circfill(x2+3,y2,8,7)
-					-- circfill(x2+13,y2+1,5,7)
 				end
-				-- fillp()
 			end
 		elseif v.size==3 then
 			if i%2==0 then
-				--[[ spr(65,x2-13,y2-3)
-				sspr(0,48,16,16,x2-10,y2-8,16,16)
-				sspr(16,48,16,16,x2-2,y2-6,16,16)
-				spr(64,x2+10,y2-4) ]]
 				spr(65,x2-4,y2-3)
 				sspr(16,48,16,16,x2-2,y2-7,16,16)
 				spr(64,x2+9,y2-4)
 				spr(65,x2+14,y2-2)
 			else
-				--[[ spr(65,x2-13,y2-3)
-				sspr(16,48,16,16,x2-11,y2-7,16,16)
-				sspr(16,48,16,16,x2-3,y2-8,16,16)
-				spr(64,x2+8,y2-1) ]]
 				spr(65,x2-8,y2-2)
 				sspr(16,48,16,16,x2-5,y2-7,16,16)
 				spr(64,x2+6,y2-2)
 			end
 		elseif v.size==2 then
-			-- sspr(16,48,16,16,x2-6,y2-6,16,16)
 			spr(65,x2-4,y2-2)
 			spr(64,x2,y2-2)
 			spr(66,x2+6,y2-1)
@@ -343,38 +310,13 @@ function space:_draw()
 	-- for i,v in pairs(self.particles) do
 	for v in all(self.particles) do
 		if v.type=="thrust" then
-			-- fillp(cover_pattern[5])
-			-- circfill(v.x,v.y,
-			-- 	sub(ptcl_size_thrust,v.age,_),
-			-- 	tonum(sub(ptcl_thrust_col,v.age,_),0x1))
-			-- pset(v.x,v.y,tonum(sub(ptcl_thrust_col,v.age,_),0x1))
-			-- fillp()
-
-			-- pset(v.x,v.y,7)
-			-- v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
-			-- v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
-
 			fillp(cover_pattern[10-clamp(flr(v.age*0.38),0,9)])
 			circfill(v.x,v.y,1,7)
-			-- rectfill(v.x-1,v.y-1,v.x+1,v.y+1,7)
-			-- local d=0.5+flr(v.age*0.15)
-			-- rectfill(v.x-d,v.y-d,v.x+d,v.y+d,7)
 			v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
 			v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
 			fillp()
-
 			if(v.age>v.age_max) del(self.particles,v)
-
-		elseif v.type=="thrust-back" then
-			circfill(v.x,v.y,
-				sub(ptcl_size,v.age,_)*0.7,
-				tonum(sub(ptcl_back_col,v.age,_),0x1))
-			v.x+=v.sx-self.spd_x+rnd(2)-1
-			v.y+=v.sy+self.spd_y+rnd(2)-1
-			v.sx*=0.93
-			v.sy*=0.93
-			if(v.age>16) del(self.particles,v)
-
+		
 		elseif v.type=="enemy_trail" then
 			pset(v.x,v.y,7)
 			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(0.6)-0.3
@@ -892,6 +834,7 @@ function enemies:_draw()
 
 			if e.type==4 then
 				pal()
+				-- pal(dim_pal)
 				sspr(40,32,9,5,e.x-4,e.y-4)
 				if abs(e.spd_x)>0.3 then
 					sspr(40,37,9,3,e.x-4,e.y+1)
@@ -903,47 +846,20 @@ function enemies:_draw()
 					sspr(49,37,9,3,e.x-5,e.y+1,9,3,true)
 					rect(e.x,e.y+4,e.x+2,e.y+5,2)
 				end
-				-- circ(e.x,e.y,22,11)
-
 			elseif e.type==3 then
+				-- pal()
 				spr(32,e.x-7,e.y-7,2,2)
 			else
 				local s=get_spr(e.angle)
 				sspr(s.spr*8,0,16,16,e.x-4,e.y-4,16*0.6,16*0.6,s.fx,s.fy)
 			end
+			-- circ(e.x,e.y,22,11)
 		end
 		pal()
-
-
+		-- pal(dim_pal)
 	end
-
-	-- hit test between enemies
-	--[[ for i,e1 in pairs(self.list) do
-		for j=i+1,#self.list do
-			local e2=self.list[j]
-			if abs(e1.x-e2.x)<=8 and abs(e1.y-e2.y)<=8 and get_dist(e1.x,e1.y,e2.x,e2.y)<=8 then
-				-- 대충하는 충돌 처리
-				-- todo: 최대 속도 제한 + 좀 더 정확한 물리 계산
-				local sx,sy=e1.spd_x,e1.spd_y
-				e1.spd_x=e2.spd_x*1.2
-				e1.spd_y=e2.spd_y*1.2
-				e2.spd_x=sx*1.2
-				e2.spd_y=sy*1.2
-				e1.hit_count=8
-				e2.hit_count=8
-				e1.hp-=1
-				e2.hp-=1
-				local hx,hy=(e1.x+e2.x)/2,(e1.y+e2.y)/2
-				if hx>0 and hx<127 and hy>0 and hy<127 then
-					local d=atan2(e1.x-e2.x,e1.y-e2.y)
-					add_hit_eff(hx,hy,d)
-					sfx(2,3)
-				end
-			end
-		end
-	end ]]
-
 end
+
 function enemies:add(x,y,t)
 	local hp,type,spd=1,1,0.4
 	if(t==2) hp,type,spd=8,2,0.6
@@ -1121,7 +1037,7 @@ ui._draw=function()
 	printa(n1,15,122,0,1)
 	printa(v1,19,122,6,1)
 
-	pal{[3]=8} spr(84,22,122) pal()
+	pal{[3]=8} spr(84,22,122) pal(dim_pal)
 	print("00",28,122,1)
 	local n2="" for i=2,#v2 do n2=n2.."0" end
 	printa(n2,36,122,0,1)
@@ -1145,6 +1061,31 @@ ui._draw=function()
 	end
 end
 
+function draw_title()
+	rectfill(0,0,127,30,0)
+	rectfill(0,97,127,127,0)
+	rectfill(0,31,10,96,0)
+	rectfill(127-10,31,127,96,0)
+	-- fillp(cover_pattern[5])
+	-- rectfill(0,30,127,34,0)
+	-- rectfill(0,97-4,127,127-30,0)
+	-- rectfill(10,31,14,96,0)
+	-- rectfill(127-14,31,127-10,96,0)
+	-- fillp()
+	
+	print("\^w\^ttime pilot",25,36,0)
+	print("\^w\^ttime pilot",24,35,9)
+	printa("demake 2022",65,49,0,0.5)
+	printa("demake 2022",64,48,9,0.5)
+
+	if f%30<20 then
+		-- printa("press any key",65,102,0,0.5)
+		printa("press any key",64,101,12,0.5)
+	end
+
+
+end
+
 
 
 -- <constants> --------------------
@@ -1153,6 +1094,7 @@ end
 
 --------------------------------------------------
 f=0 -- every frame +1
+dim_pal_colors="1212114522311140"
 dim_pal={} -- 이게 있으면 stage 렌더링 시작할 때 팔레트 교체
 stage=sprite.new() -- scene graph top level object
 cx,cy=64,64 -- space center
@@ -1178,12 +1120,17 @@ function _update60()
 end
 function _draw()
 	cls(12)
-	-- pal()
-
+	
+	
+	-- dim_pal={1,2,1,2,1,1,4,5,2,2,3,1,1,1,4,0} -- 임시
+	-- dim_pal={2,2,2,2,2,2,5,5,2,2,5,2,2,2,5,0} -- 임시
 	if(#dim_pal>0) pal(dim_pal,0)
-	stage:render(0,0)
 
+	rectfill(0,0,127,127,12)
+	stage:render(0,0)
 	ui._draw()
+	
+	-- draw_title()
 
 	-- 개발용
 	if dev==1 then
