@@ -1,9 +1,11 @@
 dev=1
-ver="0.27"
-latest_update="2022/02/16"
+ver="0.28" -- 2022/04/26
+
+-- 원작 참고
+-- https://youtu.be/JPBkZHX3ju8
+-- https://youtu.be/v_OzRECVOk8
 
 poke(0X5F5C, 12) poke(0X5F5D, 3) -- Input Delay(default 15, 4)
-poke(0x5f2d, 0x1) -- Use Mouse input
 
 -- screen cover pattern 0->100%
 cover_pattern_str=[[
@@ -155,8 +157,6 @@ function print_system_info()
 	local cpu=round(stat(1)*10000)
 	local mem=tostr(round(stat(0)))
 	local s=(cpu\100).."."..(cpu%100\10)..(cpu%10).."%"
-	-- printa(s,128,2,0,1) printa(s,127,1,8,1)
-	-- printa(mem,128,8,0,1) printa(mem,127,7,8,1)
 	printa(s,128,2,0,1) printa(s,127,1,11,1)
 	printa(mem,98,2,0,1) printa(mem,97,1,11,1)
 end
@@ -169,9 +169,10 @@ function swap(v) if v==0 then return 1 else return 0 end end -- 1 0 swap
 function clamp(a,min_v,max_v) return min(max(a,min_v),max_v) end
 function rndf(lo,hi) return lo+rnd()*(hi-lo) end -- random real number between lo and hi
 function rndi(n) return round(rnd()*n) end -- random int
-function printa(t,x,y,c,align) -- 0.5 center, 1 right align
+function printa(t,x,y,c,align,shadow) -- 0.5 center, 1 right align
 	x-=align*4*#(tostr(t))
-	print(t,x,y,c)
+	if (shadow) ?t,x+1,y+1,0
+	?t,x,y,c
 end
 
 
@@ -341,9 +342,9 @@ function space:_draw()
 					if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then
 						e.hp-=1
 						if e.hp<=0 then
-							if(e.type==1) ui.kill_1+=1
-							if(e.type==2) ui.kill_2+=1
-							if(e.type==3) ui.kill_3+=1
+							if(e.type==1) ui.kill_1+=1 gamedata.score+=1
+							if(e.type==2) ui.kill_2+=1 gamedata.score+=3
+							if(e.type==3) ui.kill_3+=1 gamedata.score+=15 add(_space.particles,{type="score",value=1500,x=e.x,y=e.y,age=1})
 							_enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type)
 							add_explosion_eff(e.x,e.y,v.sx,v.sy)
 							del(_enemies.list,e)
@@ -408,7 +409,15 @@ function space:_draw()
 			v.size+=0.6
 			circ(cx,cy,v.size,8+rndi(7))
 			if(v.age>32) del(self.particles,v)
+
+		elseif v.type=="score" then
+			printa(v.value,v.x,v.y,7,0.5,true)
+			v.x-=self.spd_x*1.5
+			v.y+=self.spd_y*1.2
+			if(v.age>45) del(self.particles,v)
+
 		end
+
 		v.age+=1
 	end
 end
@@ -426,8 +435,8 @@ function ship:init()
 	self.spd_y=0
 	self.spd_cx=0
 	self.spd_cy=0
-	-- self.spd_max=0.88
-	self.spd_max=0.8
+	-- self.spd_max=0.8
+	self.spd_max=0.7
 	self.angle=0
 	self.angle_acc=0
 	self.angle_acc_pow=0.0004
@@ -436,9 +445,9 @@ function ship:init()
 	self.thrust_max=1.4
 	self.tail={x=0,y=0}
 	self.head={x=0,y=0}
-	self.fire_spd=1.8 -- 1.4 -> 3.0
+	self.fire_spd=2.2 -- 1.4 -> 3.0
 	self.fire_intv=0
-	self.fire_intv_full=8 -- 20 -> 5
+	self.fire_intv_full=6 -- 20 -> 5
 	self.bomb_spd=0.7
 	self.bomb_intv=0
 	self.bomb_intv_full=60
@@ -666,13 +675,14 @@ function ship:on_update()
 		if abs(e.x-cx)<=dist and abs(e.y-cy)<=dist and get_dist(e.x,e.y,cx,cy)<=dist then
 			if e.type==4 then
 				-- 낙하산 먹기
-				-- todo:좀 다듬어야 함....
 				ui.kill_4+=1
 				sfx(32,-1)
 				_enemies:add(rndi(227)-50,-160,4)
 				add(_space.particles,{type="circle",size=3,age=1})
 				add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
+				add(_space.particles,{type="score",value=5000,x=e.x,y=e.y,age=1})
 				del(_enemies.list,e)
+				gamedata.score+=50
 			else
 				sfx(2,-1)
 				self.hit_count=8
@@ -708,7 +718,7 @@ function enemies:init(enemies_num)
 	for i=1,enemies_num do
 		local x=cos(i/enemies_num)
 		local y=sin(i/enemies_num)
-		self:add(x*100,y*100,(i==enemies_num)and 3 or (i==enemies_num-1) and 2 or nil)
+		self:add(x*100,y*100,(i==enemies_num) and 3 or (i==enemies_num-1) and 2 or nil)
 	end
 	self:add(64,-50,4)
 	self:show(true)
@@ -861,8 +871,10 @@ function enemies:_draw()
 end
 
 function enemies:add(x,y,t)
-	local hp,type,spd=1,1,0.4
-	if(t==2) hp,type,spd=8,2,0.6
+	-- local hp,type,spd=1,1,0.4
+	local hp,type,spd=1,1,0.3
+	-- if(t==2) hp,type,spd=8,2,0.6
+	if(t==2) hp,type,spd=8,2,0.4
 	if(t==3) hp,type,spd=20,3,0.2
 	if(t==4) type=4
 
@@ -1015,6 +1027,13 @@ function add_hit_eff(x,y,angle)
 	end
 end
 
+function print_score(num,suffix,len,x,y)
+	local t=tostr(num)
+	t=t=="0" and "0" or t..suffix
+	local t1="" for i=1,len-#t do t1=t1.."0" end
+	printa(t1,x,y,1,0)
+	printa(t,x+len*4,y,6,1)
+end
 
 
 -- <ui> --------------------
@@ -1026,34 +1045,31 @@ ui={
 }
 ui._draw=function()
 	rectfill(0,121,127,127,0)
+
+	--[[ 
 	local v1=tostr(min(999,ui.kill_1))
 	local v2=tostr(min(999,ui.kill_2))
 	local v3=tostr(min(999,ui.kill_3))
 	local v4=tostr(min(999,ui.kill_4))
 
 	spr(84,1,122)
-	print("00",7,122,1)
-	local n1="" for i=2,#v1 do n1=n1.."0" end
-	printa(n1,15,122,0,1)
-	printa(v1,19,122,6,1)
+	print_score(v1,"",3,7,122)
 
 	pal{[3]=8} spr(84,22,122) pal(dim_pal)
-	print("00",28,122,1)
-	local n2="" for i=2,#v2 do n2=n2.."0" end
-	printa(n2,36,122,0,1)
-	printa(v2,40,122,6,1)
+	print_score(v2,"",3,28,122)
 
 	spr(85,43,122)
-	print("00",50,122,1)
-	local n3="" for i=2,#v3 do n3=n3.."0" end
-	printa(n3,58,122,0,1)
-	printa(v3,62,122,6,1)
+	print_score(v3,"",3,50,122)
 
-	spr(86,64,122)
-	print("00",70,122,1)
-	local n4="" for i=2,#v4 do n3=n4.."0" end
-	printa(n4,78,122,0,1)
-	printa(v4,82,122,6,1)
+	-- spr(86,64,122)
+	-- print_score(v4,"",3,70,122)
+	]]
+
+	for i=0,8 do spr(84,1+i*6,122) end
+	local w=9*6-1
+	rectfill(1+w-(w*min(1,ui.kill_1/30)),122,1+w,126,0)
+
+	print_score(gamedata.score,"00",8,70,122)
 
 
 	if dev==1 then
@@ -1098,6 +1114,11 @@ dim_pal_colors="1212114522311140"
 dim_pal={} -- 이게 있으면 stage 렌더링 시작할 때 팔레트 교체
 stage=sprite.new() -- scene graph top level object
 cx,cy=64,64 -- space center
+
+gamedata={
+	ships=5,
+	score=0,
+}
 
 function _init()
 	music(0,nil,3)
