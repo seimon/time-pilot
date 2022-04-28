@@ -1,5 +1,5 @@
 dev=1
-ver="0.28" -- 2022/04/26
+ver="0.30" -- 2022/04/29
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -244,14 +244,14 @@ function space:_draw()
 	end ]]
 
 	-- 하단 그라데이션
-	if not self.is_front then
+	--[[ if not self.is_front then
 		for i=0,8 do
 			fillp(cover_pattern[9-i])
 			local y=(cy+64)/2+66
-			rectfill(0,y-(i+1)*5,127,y-i*5,13)
+			rectfill(0,y-(i+1)*5,127,y-i*5,9)
 		end
 		fillp()
-	end
+	end ]]
 
 	-- 구름
 	for i,v in pairs(self.stars) do
@@ -342,9 +342,9 @@ function space:_draw()
 					if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then
 						e.hp-=1
 						if e.hp<=0 then
-							if(e.type==1) ui.kill_1+=1 gamedata.score+=1
-							if(e.type==2) ui.kill_2+=1 gamedata.score+=3
-							if(e.type==3) ui.kill_3+=1 gamedata.score+=15 add(_space.particles,{type="score",value=1500,x=e.x,y=e.y,age=1})
+							if(e.type==1) ui.kill_1+=1 add_score(100)
+							if(e.type==2) ui.kill_2+=1 add_score(300)
+							if(e.type==3) ui.kill_3+=1 add_score(1500) add(_space.particles,{type="score",value=1500,x=e.x,y=e.y,age=1})
 							_enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type)
 							add_explosion_eff(e.x,e.y,v.sx,v.sy)
 							del(_enemies.list,e)
@@ -511,14 +511,16 @@ function ship:on_update()
 
 	-- 상하좌우 키를 이용해서 회전
 	local to_angle=self.angle
-	if btn(1) and btn(2) then to_angle=0.125
-	elseif btn(2) and btn(0) then to_angle=0.375
-	elseif btn(0) and btn(3) then to_angle=0.625
-	elseif btn(3) and btn(1) then to_angle=0.875
-	elseif btn(0) then to_angle=0.5
-	elseif btn(1) then to_angle=0
-	elseif btn(2) then to_angle=0.25
-	elseif btn(3) then to_angle=0.75 end
+	if gdata.control then
+		if btn(1) and btn(2) then to_angle=0.125
+		elseif btn(2) and btn(0) then to_angle=0.375
+		elseif btn(0) and btn(3) then to_angle=0.625
+		elseif btn(3) and btn(1) then to_angle=0.875
+		elseif btn(0) then to_angle=0.5
+		elseif btn(1) then to_angle=0
+		elseif btn(2) then to_angle=0.25
+		elseif btn(3) then to_angle=0.75 end
+	end
 
 	
 	-- 회전 거리가 짧은 쪽으로 회전
@@ -682,7 +684,7 @@ function ship:on_update()
 				add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
 				add(_space.particles,{type="score",value=5000,x=e.x,y=e.y,age=1})
 				del(_enemies.list,e)
-				gamedata.score+=50
+				add_score(5000)
 			else
 				sfx(2,-1)
 				self.hit_count=8
@@ -1027,13 +1029,32 @@ function add_hit_eff(x,y,angle)
 	end
 end
 
-function print_score(num,suffix,len,x,y)
-	local t=tostr(num)
-	t=t=="0" and "0" or t..suffix
-	local t1="" for i=1,len-#t do t1=t1.."0" end
-	printa(t1,x,y,1,0)
-	printa(t,x+len*4,y,6,1)
+function add_score(num)
+	gdata.score=min(gdata.score+num/10000,10000)
 end
+
+function print_score(num,len,x,y)
+	-- score는 9999.99를 x100한 후 "00"을 붙여서 표현
+	-- number의 최대값이 32767.9999라서 더 큰 숫자를 표현하기 위한 것
+	-- 0.01+0.01=0.0199인 경우가 있어서 소숫점 2자리까지만 사용함
+	-- 최대 327679900점까지 표현 가능하고 9999999까지만 표시함
+
+	local t
+	if num>=10000 then t="99999999"
+	else
+		local t1,t2=round(num%1*100),flr(num)
+		t=t1<=0 and "0" or tostr(t1).."00"
+		if t2>0 then
+			while #t<4 do t="0"..t end
+			t=t2..t
+		end
+	end
+
+	local t0="" for i=1,len-#t do t0=t0.."0" end
+	printa(t0,x,y,5,0)
+	printa(t,x+len*4,y,9,1)
+end
+
 
 
 -- <ui> --------------------
@@ -1069,42 +1090,61 @@ ui._draw=function()
 	local w=9*6-1
 	rectfill(1+w-(w*min(1,ui.kill_1/30)),122,1+w,126,0)
 
-	print_score(gamedata.score,"00",8,70,122)
-
-
-	if dev==1 then
-		printa("v"..ver,128,122,5,1)
-	end
+	?"score:",72,122,5
+	print_score(gdata.score,8,96,122)
 end
 
+
+
+-- <title> --------------------
+function draw_outcover(w,h)
+	if (63-h/2>=0) rectfill(0,0,127,63-h/2,0)
+	if (64+h/2<128) rectfill(0,64+h/2,127,127,0)
+	if (63-w/2>=0) rectfill(0,64-h/2,63-w/2,63+h/2,0)
+	if (64+w/2<128) rectfill(64+w/2,64-h/2,127,63+h/2,0)
+
+	local ww="6421100"
+	local x1,y1=64-w/2,63-h/2
+	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,0) end
+	x1=63+w/2
+	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,0) end
+	y1=64+h/2
+	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,0) end
+	x1=64-w/2
+	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,0) end
+end
 function draw_title()
-	rectfill(0,0,127,30,0)
-	rectfill(0,97,127,127,0)
-	rectfill(0,31,10,96,0)
-	rectfill(127-10,31,127,96,0)
-	-- fillp(cover_pattern[5])
-	-- rectfill(0,30,127,34,0)
-	-- rectfill(0,97-4,127,127-30,0)
-	-- rectfill(10,31,14,96,0)
-	-- rectfill(127-14,31,127-10,96,0)
-	-- fillp()
+	local r=(40-tdata.timer_to_sky)/40 -- 다음 장면으로 넘어가는 비율
 	
-	print("\^w\^ttime pilot",25,36,0)
-	print("\^w\^ttime pilot",24,35,9)
-	printa("demake 2022",65,49,0,0.5)
-	printa("demake 2022",64,48,9,0.5)
+	draw_outcover(116+sin(f%90/90)*8+r*20,62+cos(f%90/90)*8+r*70)
 
-	if f%30<20 then
-		-- printa("press any key",65,102,0,0.5)
-		printa("press any key",64,101,12,0.5)
+	local dy=cos(f%90/90)*6
+	palt(3,true) palt(0,false)
+	sspr(32,48,97,16,14,24-dy-r*50) palt()
+	printa("demake 2022",64,39-dy-r*50,7,0.5,true)
+
+	if not tdata.to_sky then
+		if (f%40<20) printa("press 🅾️❎ to play",63,86+cos(f%90/90)*4,0,0.5)
+		?"by 🐱seimon,♪music by gruber",6,121,5
+		
+		if dev==1 then
+			?"v"..ver,102,115,1
+		end
+
+		if (btn(4) or btn(5)) tdata.to_sky=true
 	end
 
-
+	-- 장면 전환하다가 타이머 0되면 title을 그리지 않음
+	if tdata.to_sky then
+		tdata.timer_to_sky-=1
+		if tdata.timer_to_sky<=0 then
+			gdata.scene="sky"
+			gdata.control=true
+		end
+	end
 end
 
 
-
--- <constants> --------------------
 
 
 
@@ -1115,9 +1155,17 @@ dim_pal={} -- 이게 있으면 stage 렌더링 시작할 때 팔레트 교체
 stage=sprite.new() -- scene graph top level object
 cx,cy=64,64 -- space center
 
-gamedata={
+tdata={
+	to_sky=false,
+	timer_to_sky=40,
+}
+gdata={
+	scene="title",
+	control=false,
+	stage=1,
 	ships=5,
 	score=0,
+	highscore=0,
 }
 
 function _init()
@@ -1151,7 +1199,8 @@ function _draw()
 	stage:render(0,0)
 	ui._draw()
 	
-	-- draw_title()
+	if(gdata.scene=="title") draw_title()
+	
 
 	-- 개발용
 	if dev==1 then
