@@ -1,5 +1,5 @@
 dev=1
-ver="0.30" -- 2022/04/29
+ver="0.32" -- 2022/04/30
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -416,8 +416,11 @@ function space:_draw()
 			v.y+=self.spd_y*1.2
 			if(v.age>45) del(self.particles,v)
 
+		elseif v.type=="stage_info" then
+			printa(v.t1,63,63-18,7,0.5,true)
+			printa(v.t2,63,63+14,8+flr(f/5%5),0.5,true)
+			if(v.age>180) del(self.particles,v)
 		end
-
 		v.age+=1
 	end
 end
@@ -435,7 +438,6 @@ function ship:init()
 	self.spd_y=0
 	self.spd_cx=0
 	self.spd_cy=0
-	-- self.spd_max=0.8
 	self.spd_max=0.7
 	self.angle=0
 	self.angle_acc=0
@@ -520,6 +522,12 @@ function ship:on_update()
 		elseif btn(1) then to_angle=0
 		elseif btn(2) then to_angle=0.25
 		elseif btn(3) then to_angle=0.75 end
+	elseif gdata.control_waiting>0 then
+		gdata.control_waiting-=1
+		if gdata.control_waiting<=0 then
+			gdata.control=true
+			_enemies:set_enemies(7)
+		end
 	end
 
 	
@@ -702,9 +710,12 @@ function ship:on_update()
 	_space_f.spd_x=self.spd_x
 	_space_f.spd_y=-self.spd_y
 	
-	-- space center move(use space speed & ship direction)
-	local tcx=64-self.spd_x*8-cos(self.angle)*10
-	local tcy=64-self.spd_y*8-sin(self.angle)*10
+	-- Space의 중심을 살짝 옮겨서 전방 시야 확보(비행기 방향만 고려)
+	local dst=gdata.scene=="title" and 0 or max(0,40-gdata.control_waiting)/40*14
+	-- local tcx=64-self.spd_x*8-cos(self.angle)*dst
+	-- local tcy=64-self.spd_y*8-sin(self.angle)*dst
+	local tcx=64-cos(self.angle)*dst
+	local tcy=64-sin(self.angle)*dst
 	_space.spd_cx=(tcx-cx)*0.12
 	_space.spd_cy=(tcy-cy)*0.12
 	cx=cx+(tcx-cx)*0.12
@@ -715,15 +726,19 @@ end
 
 -- <enemies> --------------------
 enemies=class(sprite)
-function enemies:init(enemies_num)
+function enemies:init()
 	self.list={}
-	for i=1,enemies_num do
-		local x=cos(i/enemies_num)
-		local y=sin(i/enemies_num)
-		self:add(x*100,y*100,(i==enemies_num) and 3 or (i==enemies_num-1) and 2 or nil)
-	end
-	self:add(64,-50,4)
 	self:show(true)
+end
+
+function enemies:set_enemies(enemies_num)
+	-- todo: 임시로 대충 뿌려놨음
+	for i=1,enemies_num do
+		local x=cos(i/enemies_num+0.526)
+		local y=sin(i/enemies_num+0.526)
+		self:add(x*116,y*116,(i==enemies_num) and 3 or (i==enemies_num-1) and 2 or nil)
+	end
+	self:add(64,70,4) -- 낙하산도 하나
 end
 
 function enemies:_draw()
@@ -753,9 +768,9 @@ function enemies:_draw()
 							type="bullet_enemy",
 							x=e.x+e.spd_x*16,
 							y=e.y+e.spd_y*16,
-							sx=cos(e.angle)*0.8,
-							sy=sin(e.angle)*0.8,
-							age_max=120,
+							sx=cos(e.angle)*0.6,
+							sy=sin(e.angle)*0.6,
+							age_max=150,
 							age=1
 						})
 					end
@@ -766,7 +781,7 @@ function enemies:_draw()
 			-- 전방위 공격
 			if e.x>0 and e.y>0 and e.x<127 and e.y<127 and f%60==0 then
 				local to_angle=atan2(cx-e.x,cy-e.y)+rnd(0.08)-0.04
-				local sx,sy=cos(to_angle)*0.7,sin(to_angle)*0.7
+				local sx,sy=cos(to_angle)*0.4,sin(to_angle)*0.4
 				sfx(25,-1)
 				add(_space.particles,
 				{
@@ -775,7 +790,7 @@ function enemies:_draw()
 					y=e.y+sy*12,
 					sx=sx,
 					sy=sy,
-					age_max=120,
+					age_max=150,
 					age=1
 				})
 			end
@@ -1050,7 +1065,7 @@ function print_score(num,len,x,y)
 		end
 	end
 
-	local t0="" for i=1,len-#t do t0=t0.."0" end
+	local t0="" for i=1,len-#t do t0=t0.."_" end
 	printa(t0,x,y,5,0)
 	printa(t,x+len*4,y,9,1)
 end
@@ -1088,58 +1103,81 @@ ui._draw=function()
 
 	for i=0,8 do spr(84,1+i*6,122) end
 	local w=9*6-1
-	rectfill(1+w-(w*min(1,ui.kill_1/30)),122,1+w,126,0)
+	-- rectfill(1+w-(w*min(1,ui.kill_1/30)),122,1+w,126,0)
+	-- todo: 꽤 무거운 방식이라 개선 필요
+	for i=1+w-(w*min(1,ui.kill_1/30)),1+w do
+		for j=122,126 do
+			pset(i,j,pget(i,j)==0 and 0 or 1)
+		end
+	end
 
-	?"score:",72,122,5
-	print_score(gdata.score,8,96,122)
+
+	spr(207,61,122)
+	?gdata.planes,70,122,8
+
+	-- ?"score:",72,122,5
+	-- print_score(gdata.score,8,96,122)
+	print_score(gdata.score,8,82,122)
+	?"pts",116,122,5
 end
 
 
 
 -- <title> --------------------
-function draw_outcover(w,h)
-	if (63-h/2>=0) rectfill(0,0,127,63-h/2,0)
-	if (64+h/2<128) rectfill(0,64+h/2,127,127,0)
-	if (63-w/2>=0) rectfill(0,64-h/2,63-w/2,63+h/2,0)
-	if (64+w/2<128) rectfill(64+w/2,64-h/2,127,63+h/2,0)
+function draw_outcover(w,h,c)
+	if (63-h/2>=0) rectfill(0,0,127,63-h/2,c)
+	if (64+h/2<128) rectfill(0,64+h/2,127,127,c)
+	if (63-w/2>=0) rectfill(0,64-h/2,63-w/2,63+h/2,c)
+	if (64+w/2<128) rectfill(64+w/2,64-h/2,127,63+h/2,c)
 
 	local ww="6421100"
 	local x1,y1=64-w/2,63-h/2
-	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,0) end
+	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,c) end
 	x1=63+w/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,0) end
+	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,c) end
 	y1=64+h/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,0) end
+	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,c) end
 	x1=64-w/2
-	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,0) end
+	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end
 end
 function draw_title()
 	local r=(40-tdata.timer_to_sky)/40 -- 다음 장면으로 넘어가는 비율
 	
-	draw_outcover(116+sin(f%90/90)*8+r*20,62+cos(f%90/90)*8+r*70)
-
-	local dy=cos(f%90/90)*6
-	palt(3,true) palt(0,false)
-	sspr(32,48,97,16,14,24-dy-r*50) palt()
-	printa("demake 2022",64,39-dy-r*50,7,0.5,true)
+	local d1,d2=sin(f%90/90),cos(f%90/90)
+	draw_outcover(116+d1*8+r*20,60+d2*8+r*76,0)
+	palt(3,true) palt(0,false) sspr(32,48,97,16,14,25-d2*6-r*50) palt()
+	printa("demake 2022",64,39-d2*6-r*50,7,0.5,true)
 
 	if not tdata.to_sky then
-		if (f%40<20) printa("press 🅾️❎ to play",63,86+cos(f%90/90)*4,0,0.5)
-		?"by 🐱seimon,♪music by gruber",6,121,5
-		
-		if dev==1 then
-			?"v"..ver,102,115,1
-		end
+		if (f%40<26) printa("press 🅾️❎ to play",63,86+d2*4,0,0.5)
 
+		-- ?"by 🐱seimon,♪music by gruber",6,121,5
+		-- printa("& every 50000 pts",64,110,6,0.5)
+		?"1st bonus \f410000\f5 pts",26,98+d2*4,5
+		?"& every \f450000\f5 pts",30,104+d2*4,5
+		-- ?"by 🐱seimon,♪gruber",6,121,5
+		-- line(0,120,127,120,5)
+		?"……… by 🐱seimon,♪gruber ………",-4,122,5
+		
+
+		
+		if (dev==1) ?"v"..ver,1,1,1
 		if (btn(4) or btn(5)) tdata.to_sky=true
 	end
 
-	-- 장면 전환하다가 타이머 0되면 title을 그리지 않음
+	-- 장면 전환하다가 타이머 0되면 씬 이름 변경(=더 이상 title을 그리지 않음)
 	if tdata.to_sky then
 		tdata.timer_to_sky-=1
 		if tdata.timer_to_sky<=0 then
 			gdata.scene="sky"
-			gdata.control=true
+			gdata.control_waiting=150
+			add(_space_f.particles,
+			{
+				type="stage_info",
+				t1="s t a g e  1",
+				t2="a.d. 1 9 1 0",
+				age=1,
+			})
 		end
 	end
 end
@@ -1155,15 +1193,16 @@ dim_pal={} -- 이게 있으면 stage 렌더링 시작할 때 팔레트 교체
 stage=sprite.new() -- scene graph top level object
 cx,cy=64,64 -- space center
 
-tdata={
+tdata={ -- 화면 전환 정보
 	to_sky=false,
 	timer_to_sky=40,
 }
-gdata={
+gdata={ -- 게임 데이타
 	scene="title",
 	control=false,
+	control_waiting=0,
 	stage=1,
-	ships=5,
+	planes=3,
 	score=0,
 	highscore=0,
 }
@@ -1175,8 +1214,7 @@ function _init()
 	_space=space.new()
 	_space_f=space.new(true) -- front layer
 	_ship=ship.new()
-	_enemies=enemies.new(7)
-	-- _enemies:add(80,64,3)
+	_enemies=enemies.new()
 
 	stage:add_child(_space)
 	stage:add_child(_ship)
@@ -1190,7 +1228,6 @@ end
 function _draw()
 	cls(12)
 	
-	
 	-- dim_pal={1,2,1,2,1,1,4,5,2,2,3,1,1,1,4,0} -- 임시
 	-- dim_pal={2,2,2,2,2,2,5,5,2,2,5,2,2,2,5,0} -- 임시
 	if(#dim_pal>0) pal(dim_pal,0)
@@ -1200,7 +1237,6 @@ function _draw()
 	ui._draw()
 	
 	if(gdata.scene=="title") draw_title()
-	
 
 	-- 개발용
 	if dev==1 then
