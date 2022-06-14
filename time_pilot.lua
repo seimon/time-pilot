@@ -1,5 +1,5 @@
 dev=1
-ver="0.32" -- 2022/04/30
+ver="0.33" -- 2022/06/15
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -415,6 +415,11 @@ function space:_draw()
 			v.x-=self.spd_x*1.5
 			v.y+=self.spd_y*1.2
 			if(v.age>45) del(self.particles,v)
+
+		elseif v.type=="bonus" then
+			local s=v.is_first and "1st bonus!" or "bonus!"
+			printa(s,68,118-cos((60-v.age)/120)*5,8+flr(f/5%5),0.5,true)
+			if(v.age>120) del(self.particles,v)
 
 		elseif v.type=="stage_info" then
 			printa(v.t1,63,63-18,7,0.5,true)
@@ -1046,6 +1051,20 @@ end
 
 function add_score(num)
 	gdata.score=min(gdata.score+num/10000,10000)
+
+	-- bonus
+	if gdata.bonus_earned<=0 then
+		if gdata.score>=1 then
+			gdata.bonus_earned=1
+			gdata.planes+=1
+			add(_space_f.particles,{type="bonus",is_first=true,age=1})
+		end
+	elseif gdata.score\5+1>gdata.bonus_earned then
+		gdata.bonus_earned=gdata.score\5+1
+		gdata.planes+=1
+		add(_space_f.particles,{type="bonus",age=1})
+	end
+	
 end
 
 function print_score(num,len,x,y)
@@ -1204,6 +1223,7 @@ gdata={ -- 게임 데이타
 	stage=1,
 	planes=3,
 	score=0,
+	bonus_earned=0,
 	highscore=0,
 }
 
