@@ -1,5 +1,5 @@
 dev=1
-ver="0.33" -- 2022/06/15
+ver="0.34" -- 2022/06/20
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -182,6 +182,8 @@ space=class(sprite)
 function space:init(is_front)
 	self.spd_x=0
 	self.spd_y=0
+	self.spd_cx=0
+	self.spd_cy=0
 	self.stars={}
 	self.particles={}
 	self.is_front=is_front
@@ -317,6 +319,12 @@ function space:_draw()
 			v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
 			fillp()
 			if(v.age>v.age_max) del(self.particles,v)
+
+		elseif v.type=="smoke" then
+			circfill(v.x,v.y,1.5+(v.age/60)*6,0)
+			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(1)-0.5
+			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(1)-0.5
+			if(v.age>60) del(self.particles,v)
 		
 		elseif v.type=="enemy_trail" then
 			pset(v.x,v.y,7)
@@ -367,11 +375,12 @@ function space:_draw()
 				-- todo: 플레이어와 충돌 처리를 하자!
 
 				local dist=5
-				if abs(v.x-cx)<=dist and abs(v.y-cy)<=dist and get_dist(v.x,v.y,cx,cy)<=dist then
-					_ship.hit_count=8
+				if not _ship.is_killed and abs(v.x-cx)<=dist and abs(v.y-cy)<=dist and get_dist(v.x,v.y,cx,cy)<=dist then
+					--[[ _ship.hit_count=8
 					add_hit_eff(v.x,v.y,atan2(cx-v.x,cy-v.y))
 					del(self.particles,v)
-					sfx(2,-1)
+					sfx(2,-1) ]]
+					_ship:kill()
 				end
 			end
 
@@ -459,6 +468,8 @@ function ship:init()
 	self.bomb_intv=0
 	self.bomb_intv_full=60
 	self.hit_count=0
+	self.is_killed=false
+	self.killed_angle=0.65
 	self:show(true)
 	self:on("update",self.on_update)
 end
@@ -518,7 +529,9 @@ function ship:on_update()
 
 	-- 상하좌우 키를 이용해서 회전
 	local to_angle=self.angle
-	if gdata.control then
+	if self.is_killed then
+		to_angle=self.killed_angle+cos(f/60)*0.05
+	elseif gdata.control then
 		if btn(1) and btn(2) then to_angle=0.125
 		elseif btn(2) and btn(0) then to_angle=0.375
 		elseif btn(0) and btn(3) then to_angle=0.625
@@ -534,17 +547,10 @@ function ship:on_update()
 			_enemies:set_enemies(7)
 		end
 	end
-
 	
 	-- 회전 거리가 짧은 쪽으로 회전
 	if abs(to_angle-self.angle)>0.02 then
 		self.angle_acc+=self.angle_acc_pow*get_rotate_dir(self.angle,to_angle)
-		-- local da1=self.angle-to_angle
-		-- local da2=to_angle-self.angle
-		-- da1=da1<0 and da1+1 or da1
-		-- da2=da2<0 and da2+1 or da2
-		-- if da1>da2 then self.angle_acc+=self.angle_acc_pow
-		-- else self.angle_acc-=self.angle_acc_pow end
 	else
 		self.angle=to_angle
 		self.angle_acc=0
@@ -577,6 +583,9 @@ function ship:on_update()
 	self.spd_x=cos(self.angle)*spd
 	self.spd_y=sin(self.angle)*spd
 
+	
+	if(self.is_killed) goto continue -- 죽었으면 공격 불가
+
 	-- fire
 	self.fire_intv-=1
 	if btn(4) and self.fire_intv<=0 then
@@ -596,19 +605,6 @@ function ship:on_update()
 			age_max=60,
 			age=1
 		})
-		-- 총 쏠 때 연기
-		--[[ for i=1,6 do
-			add(_space_f.particles,
-			{
-				type="thrust",
-				x=self.head.x,
-				y=self.head.y,
-				sx=-fire_spd_x*0.3,
-				sy=-fire_spd_y*0.3,
-				age_max=16,
-				age=1+rndi(6)
-			})
-		end ]]
 	end
 
 	-- bomb
@@ -632,48 +628,32 @@ function ship:on_update()
 		})
 	end
 
-	-- add effect
-	-- if(f%6==0) sfx(4,1) -- 항상 엔진음, 
-	-- 분사효과
-	add(_space.particles,
-		{
-			type="thrust",
-			x=self.tail.x+rnd(0.6)-0.3,
-			y=self.tail.y+rnd(0.6)-0.3,
-			sx=-self.spd_x*1.5,
-			sy=-self.spd_y*1.5,
-			age_max=50,
-			age=1
-		})
+	::continue::
 
-	--[[ 
-	if self.thrust_acc>0 then
-		if(f%6==0) sfx(4,2)
-		add(_space_f.particles,
-		{
-			type="thrust",
-			x=self.tail.x-2+rnd(4),
-			y=self.tail.y-2+rnd(4),
-			sx=-thr_x*130,
-			sy=-thr_y*130,
-			age_max=16,
-			age=1
-		})
-	elseif self.thrust_acc<-0.0001 then
-		sfx(5,2)
-		add(_space_f.particles,
-		{
-			type="thrust-back",
-			x=self.head.x-2+rnd(4),
-			y=self.head.y-2+rnd(4),
-			sx=-thr_x*120,
-			sy=-thr_y*120,
-			age=1
-		})
+	-- 분사효과 or 검은연기
+	if self.is_killed then
+		add(_space.particles,
+			{
+				type="smoke",
+				x=self.tail.x+rnd(0.6)-0.3,
+				y=self.tail.y+rnd(0.6)-0.3,
+				sx=-self.spd_x*1.5,
+				sy=-self.spd_y*1.5,
+				age=1
+			})
 	else
-		sfx(-1,2)
+		add(_space.particles,
+			{
+				type="thrust",
+				x=self.tail.x+rnd(0.6)-0.3,
+				y=self.tail.y+rnd(0.6)-0.3,
+				sx=-self.spd_x*1.5,
+				sy=-self.spd_y*1.5,
+				age_max=50,
+				age=1
+			})
 	end
-	]]
+
 
 	-- speed limit
 	--[[ local spd=sqrt(self.spd_x^2+self.spd_y^2)
@@ -698,13 +678,14 @@ function ship:on_update()
 				add(_space.particles,{type="score",value=5000,x=e.x,y=e.y,age=1})
 				del(_enemies.list,e)
 				add_score(5000)
-			else
-				sfx(2,-1)
-				self.hit_count=8
-				e.hit_count=8
-				e.hp-=1
-				local d=atan2(e.x-cx,e.y-cy)
-				add_hit_eff((cx+e.x)/2,(cy+e.y)/2,d)
+			elseif not self.is_killed then
+				-- sfx(2,-1)
+				-- self.hit_count=8
+				-- e.hit_count=8
+				-- e.hp-=1
+				-- local d=atan2(e.x-cx,e.y-cy)
+				-- add_hit_eff((cx+e.x)/2,(cy+e.y)/2,d)
+				self:kill()
 			end
 		end
 	end
@@ -716,17 +697,31 @@ function ship:on_update()
 	_space_f.spd_y=-self.spd_y
 	
 	-- Space의 중심을 살짝 옮겨서 전방 시야 확보(비행기 방향만 고려)
-	local dst=gdata.scene=="title" and 0 or max(0,40-gdata.control_waiting)/40*14
-	-- local tcx=64-self.spd_x*8-cos(self.angle)*dst
-	-- local tcy=64-self.spd_y*8-sin(self.angle)*dst
+	-- local dst=gdata.scene=="title" and 0 or max(0,40-gdata.control_waiting)/40*14
+	-- if self.is_killed then dst=-40 end
+	local dst=
+		gdata.scene=="title" and 0 or
+		self.is_killed and -40 or
+		max(0,40-gdata.control_waiting)/40*14
 	local tcx=64-cos(self.angle)*dst
 	local tcy=64-sin(self.angle)*dst
 	_space.spd_cx=(tcx-cx)*0.12
 	_space.spd_cy=(tcy-cy)*0.12
+	_space_f.spd_cx=_space.spd_cx
+	_space_f.spd_cy=_space.spd_cy
 	cx=cx+(tcx-cx)*0.12
 	cy=cy+(tcy-cy)*0.12
 end
 
+function ship:kill()
+	music(-1,1000,3)
+	sfx(3,-1)
+	add_explosion_eff(self.tail.x,self.tail.y,self.spd_x,self.spd_y,false,true)
+	self.is_killed=true
+	self.killed_angle=(self.angle>0.25 and self.angle<0.75) and 0.65 or 0.85
+
+	gdata.control=false
+end
 
 
 -- <enemies> --------------------
@@ -1004,14 +999,15 @@ function get_dist(x1,y1,x2,y2)
 	return sqrt((x2-x1)^2+(y2-y1)^2)
 end
 
-function add_explosion_eff(x,y,spd_x,spd_y,is_white)
+function add_explosion_eff(x,y,spd_x,spd_y,is_white,is_front)
 	local count=20
+	local layer=is_front and _space_f or _space
 	for i=1,count do
 		local sx=cos(i/count+rnd()*0.1)
 		local sy=sin(i/count+rnd()*0.1)
 		if is_bomb then sx*=1.6 sy*=1.6 end
 		local type=is_white and "explosion_white" or "explosion"
-		add(_space.particles,
+		add(layer.particles,
 		{
 			type=type,
 			x=x+rnd(6)-3,
@@ -1021,7 +1017,7 @@ function add_explosion_eff(x,y,spd_x,spd_y,is_white)
 			size=is_bomb and 1.5 or 1,
 			age=1+rndi(16)
 		})
-		add(_space.particles,
+		add(layer.particles,
 		{
 			type="explosion_dust",
 			x=x+rnd(4)-2,
@@ -1257,6 +1253,11 @@ function _draw()
 	ui._draw()
 	
 	if(gdata.scene=="title") draw_title()
+
+	-- 죽으면 화면 뻘겋게
+	if _ship.is_killed then
+		pal({0,0,2,0,0,2,8,0,8,8,2,2,2,2,8,0},1)
+	end
 
 	-- 개발용
 	if dev==1 then
