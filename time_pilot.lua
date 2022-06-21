@@ -1,5 +1,5 @@
 dev=1
-ver="0.34" -- 2022/06/20
+ver="0.35" -- 2022/06/21
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -322,9 +322,9 @@ function space:_draw()
 
 		elseif v.type=="smoke" then
 			circfill(v.x,v.y,1.5+(v.age/60)*6,0)
-			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(1)-0.5
-			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(1)-0.5
-			if(v.age>60) del(self.particles,v)
+			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(2)-1
+			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(2)-1
+			if(v.age>80) del(self.particles,v)
 		
 		elseif v.type=="enemy_trail" then
 			pset(v.x,v.y,7)
@@ -350,9 +350,9 @@ function space:_draw()
 					if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then
 						e.hp-=1
 						if e.hp<=0 then
-							if(e.type==1) ui.kill_1+=1 add_score(100)
-							if(e.type==2) ui.kill_2+=1 add_score(300)
-							if(e.type==3) ui.kill_3+=1 add_score(1500) add(_space.particles,{type="score",value=1500,x=e.x,y=e.y,age=1})
+							if(e.type==1) _ui.kill_1+=1 add_score(100)
+							if(e.type==2) _ui.kill_2+=1 add_score(300)
+							if(e.type==3) _ui.kill_3+=1 add_score(1500) add(_space.particles,{type="score",value=1500,x=e.x,y=e.y,age=1})
 							_enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type)
 							add_explosion_eff(e.x,e.y,v.sx,v.sy)
 							del(_enemies.list,e)
@@ -470,6 +470,7 @@ function ship:init()
 	self.hit_count=0
 	self.is_killed=false
 	self.killed_angle=0.65
+	self.timer_killed=0
 	self:show(true)
 	self:on("update",self.on_update)
 end
@@ -530,7 +531,7 @@ function ship:on_update()
 	-- 상하좌우 키를 이용해서 회전
 	local to_angle=self.angle
 	if self.is_killed then
-		to_angle=self.killed_angle+cos(f/60)*0.05
+		to_angle=self.killed_angle+cos(f/60)*0.03
 	elseif gdata.control then
 		if btn(1) and btn(2) then to_angle=0.125
 		elseif btn(2) and btn(0) then to_angle=0.375
@@ -632,7 +633,7 @@ function ship:on_update()
 
 	-- 분사효과 or 검은연기
 	if self.is_killed then
-		add(_space.particles,
+		add(_space_f.particles,
 			{
 				type="smoke",
 				x=self.tail.x+rnd(0.6)-0.3,
@@ -663,29 +664,24 @@ function ship:on_update()
 		self.spd_y*=r
 	end ]]
 
-	-- hit test with enemies
-	-- for i,e in pairs(_enemies.list) do
-	for e in all(_enemies.list) do
-		local dist=(e.type==4) and 10 or (e.type==3) and 8 or 6
-		if abs(e.x-cx)<=dist and abs(e.y-cy)<=dist and get_dist(e.x,e.y,cx,cy)<=dist then
-			if e.type==4 then
-				-- 낙하산 먹기
-				ui.kill_4+=1
-				sfx(32,-1)
-				_enemies:add(rndi(227)-50,-160,4)
-				add(_space.particles,{type="circle",size=3,age=1})
-				add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
-				add(_space.particles,{type="score",value=5000,x=e.x,y=e.y,age=1})
-				del(_enemies.list,e)
-				add_score(5000)
-			elseif not self.is_killed then
-				-- sfx(2,-1)
-				-- self.hit_count=8
-				-- e.hit_count=8
-				-- e.hp-=1
-				-- local d=atan2(e.x-cx,e.y-cy)
-				-- add_hit_eff((cx+e.x)/2,(cy+e.y)/2,d)
-				self:kill()
+	-- 적과 충돌 체크
+	if not self.is_killed then
+		for e in all(_enemies.list) do
+			local dist=(e.type==4) and 10 or (e.type==3) and 8 or 6
+			if abs(e.x-cx)<=dist and abs(e.y-cy)<=dist and get_dist(e.x,e.y,cx,cy)<=dist then
+				if e.type==4 then
+					-- 낙하산 먹기
+					_ui.kill_4+=1
+					sfx(32,-1)
+					_enemies:add(rndi(227)-50,-160,4)
+					add(_space.particles,{type="circle",size=3,age=1})
+					add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
+					add(_space.particles,{type="score",value=5000,x=e.x,y=e.y,age=1})
+					del(_enemies.list,e)
+					add_score(5000)
+				else
+					self:kill()
+				end
 			end
 		end
 	end
@@ -701,7 +697,7 @@ function ship:on_update()
 	-- if self.is_killed then dst=-40 end
 	local dst=
 		gdata.scene=="title" and 0 or
-		self.is_killed and -40 or
+		self.is_killed and max(-50,-self.timer_killed/2) or
 		max(0,40-gdata.control_waiting)/40*14
 	local tcx=64-cos(self.angle)*dst
 	local tcy=64-sin(self.angle)*dst
@@ -718,10 +714,22 @@ function ship:kill()
 	sfx(3,-1)
 	add_explosion_eff(self.tail.x,self.tail.y,self.spd_x,self.spd_y,false,true)
 	self.is_killed=true
+	self.timer_killed=0
 	self.killed_angle=(self.angle>0.25 and self.angle<0.75) and 0.65 or 0.85
-
 	gdata.control=false
+	_cover:cover_killed()
 end
+
+function ship:rebirth()
+	music(18,1000,3)
+	self.is_killed=false
+	self.timer_killed=0
+	self.angle=0
+	gdata.control=true
+
+	--todo: 무적시간 넣어야 하는데...
+end
+
 
 
 -- <enemies> --------------------
@@ -916,6 +924,53 @@ end
 
 
 
+-- <cover> --------------------
+cover=class(sprite)
+function cover:init()
+	-- self:show(true)
+	self.timer=0
+	self.use_dim=false
+	self.cover_w=0
+end
+function cover:cover_killed()
+	self:show(true)
+	self.timer=0
+	self.use_dim=true
+	self:on("update",self.on_cover)
+end
+function cover:_draw()
+	if(self.use_dim) pal(dim_pal,1)
+	draw_outcover(self.cover_w,self.cover_w,0,cx,cy)
+end
+function cover:on_cover()
+	_ship.timer_killed+=1
+	self.timer+=1
+	self.cover_w=max(0,500-self.timer*2.5)
+	if self.cover_w<=0 then
+		self.timer=0
+		self.use_dim=false
+		self:on("update",self.on_hide)
+		self:remove_handler("update",self.on_cover)
+		gdata.planes-=1
+		if gdata.planes>0 then
+			_ship:rebirth()
+		else
+			--todo: 게임오버 + 타이틀 화면으로...
+			_ship:rebirth()
+		end
+	end
+end
+function cover:on_hide()
+	self.timer+=1
+	self.cover_w=self.timer*3-90
+	if self.cover_w>=160 then
+		self:show(false)
+		self:remove_handler("update",self.on_hide)
+	end
+end
+
+
+
 -- <etc. functions> --------------------
 -- function is_near(x1,y1,x2,y2,r)
 -- 	if(abs(x2-x1)>r) return false
@@ -1088,13 +1143,16 @@ end
 
 
 -- <ui> --------------------
-ui={
-	kill_1=0,
-	kill_2=0,
-	kill_3=0,
-	kill_4=0,
-}
-ui._draw=function()
+ui=class(sprite)
+function ui:init()
+	self:show(true)
+	self.kill_1=0
+	self.kill_2=0
+	self.kill_3=0
+	self.kill_4=0
+end
+function ui:_draw()
+-- ui._draw=function()
 	rectfill(0,121,127,127,0)
 
 	--[[ 
@@ -1120,7 +1178,7 @@ ui._draw=function()
 	local w=9*6-1
 	-- rectfill(1+w-(w*min(1,ui.kill_1/30)),122,1+w,126,0)
 	-- todo: 꽤 무거운 방식이라 개선 필요
-	for i=1+w-(w*min(1,ui.kill_1/30)),1+w do
+	for i=1+w-(w*min(1,self.kill_1/30)),1+w do
 		for j=122,126 do
 			pset(i,j,pget(i,j)==0 and 0 or 1)
 		end
@@ -1139,8 +1197,27 @@ end
 
 
 -- <title> --------------------
-function draw_outcover(w,h,c)
-	if (63-h/2>=0) rectfill(0,0,127,63-h/2,c)
+function draw_outcover(w,h,c,cx,cy)
+
+	local cx=cx and cx or 64
+	local cy=cy and cy or 64
+
+	if (cy-1-h/2>=0) rectfill(0,0,127,cy-1-h/2,c)
+	if (cy+h/2<128) rectfill(0,cy+h/2,127,127,c)
+	if (cx-1-w/2>=0) rectfill(0,cy-h/2,cx-1-w/2,cy-1+h/2,c)
+	if (cx+w/2<128) rectfill(cx+w/2,cy-h/2,127,cy-1+h/2,c)
+
+	local ww="6421100"
+	local x1,y1=cx-w/2,cy-1-h/2
+	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,c) end
+	x1=cx-1+w/2
+	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,c) end
+	y1=cy+h/2
+	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,c) end
+	x1=cx-w/2
+	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end
+
+	--[[ if (63-h/2>=0) rectfill(0,0,127,63-h/2,c)
 	if (64+h/2<128) rectfill(0,64+h/2,127,127,c)
 	if (63-w/2>=0) rectfill(0,64-h/2,63-w/2,63+h/2,c)
 	if (64+w/2<128) rectfill(64+w/2,64-h/2,127,63+h/2,c)
@@ -1153,7 +1230,7 @@ function draw_outcover(w,h,c)
 	y1=64+h/2
 	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,c) end
 	x1=64-w/2
-	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end
+	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end ]]
 end
 function draw_title()
 	local r=(40-tdata.timer_to_sky)/40 -- 다음 장면으로 넘어가는 비율
@@ -1203,8 +1280,12 @@ end
 
 --------------------------------------------------
 f=0 -- every frame +1
-dim_pal_colors="1212114522311140"
-dim_pal={} -- 이게 있으면 stage 렌더링 시작할 때 팔레트 교체
+
+-- dim_pal_colors="1212114522311140"
+dim_colors="0020028088222280"
+dim_pal={}
+for i=1,16 do dim_pal[i]=sub(dim_colors,i,_) end
+
 stage=sprite.new() -- scene graph top level object
 cx,cy=64,64 -- space center
 
@@ -1231,11 +1312,15 @@ function _init()
 	_space_f=space.new(true) -- front layer
 	_ship=ship.new()
 	_enemies=enemies.new()
+	_ui=ui.new()
+	_cover=cover.new()
 
 	stage:add_child(_space)
 	stage:add_child(_ship)
 	stage:add_child(_enemies)
 	stage:add_child(_space_f)
+	stage:add_child(_ui)
+	stage:add_child(_cover)
 end
 function _update60()
 	f+=1
@@ -1244,20 +1329,19 @@ end
 function _draw()
 	cls(12)
 	
-	-- dim_pal={1,2,1,2,1,1,4,5,2,2,3,1,1,1,4,0} -- 임시
-	-- dim_pal={2,2,2,2,2,2,5,5,2,2,5,2,2,2,5,0} -- 임시
-	if(#dim_pal>0) pal(dim_pal,0)
+	-- if(#dim_pal>0) pal(dim_pal,0)
 
 	rectfill(0,0,127,127,12)
 	stage:render(0,0)
-	ui._draw()
+	-- ui._draw()
 	
 	if(gdata.scene=="title") draw_title()
 
 	-- 죽으면 화면 뻘겋게
-	if _ship.is_killed then
-		pal({0,0,2,0,0,2,8,0,8,8,2,2,2,2,8,0},1)
-	end
+	--[[ if _ship.is_killed then
+		_ship.timer_killed+=1
+		pal(dim_pal,1)
+	end ]]
 
 	-- 개발용
 	if dev==1 then
