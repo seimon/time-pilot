@@ -1,5 +1,5 @@
-dev=1
-ver="0.35" -- 2022/06/21
+dev=0
+ver="0.42" -- 2022/07/21
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -22,21 +22,44 @@ cover_pattern_str=[[
 ]]
 cover_pattern=split(cover_pattern_str,",")
 
--- particla data
--- x,y,color pre calculated value
-p_data={}
-p_str=[[
-3,1,7,4,1,7,5,1,7,6,1,7,6,1,10,7,1,10,8,2,10,9,2,9,9,2,9,10,2,4,10,2,5,11,2,5,11,2,2,11,2,2/
-2,2,7,2,2,7,2,3,7,3,3,7,3,3,7,4,4,7,4,4,7,4,5,10,5,5,10,5,5,10,5,6,10,6,6,10,6,6,9,6,7,9,6,7,9,7,7,4,7,7,4,7,8,4,7,8,5/
-1,3,7,1,4,7,1,4,7,1,5,7,2,6,10,2,7,10,2,7,10,2,8,10,2,9,9,2,9,9,3,10,4,3,10,5,3,11,5,3,11,2,3,11,2/
--1,3,7,-1,3,7,-1,4,7,-2,5,7,-2,6,10,-2,6,10,-2,7,10,-2,7,10,-3,8,9,-3,9,9,-3,9,4,-3,10,4,-3,10,5,-3,10,5,-3,11,2,-4,11,2/
--2,1,7,-3,1,7,-4,1,7,-4,2,7,-5,2,7,-5,2,7,-6,2,10,-6,3,10,-7,3,10,-7,3,10,-8,3,10,-8,3,9,-9,3,9,-9,4,4,-9,4,4,-10,4,4,-10,4,5,-10,4,5,-11,4,2/
--3,-1,7,-4,-1,7,-4,-1,7,-5,-1,7,-6,-1,10,-7,-1,10,-7,-1,10,-8,-2,10,-9,-2,9,-9,-2,9,-10,-2,4,-10,-2,4,-11,-2,5,-11,-2,5,-11,-2,2,-11,-2,2/
--1,-3,7,-2,-3,7,-2,-4,7,-3,-5,7,-3,-5,10,-3,-6,10,-4,-7,10,-4,-7,10,-4,-8,9,-5,-8,9,-5,-9,4,-5,-9,5,-5,-10,5,-5,-10,2,-6,-10,2/
-0,-3,7,0,-3,7,0,-4,7,-1,-4,7,-1,-5,7,-1,-5,7,-1,-6,10,-1,-6,10,-1,-7,10,-1,-7,10,-1,-8,10,-1,-8,9,-1,-9,9,-1,-9,9,-1,-10,4,-1,-10,4,-1,-10,4,-1,-11,5,-1,-11,5/
-2,-2,7,2,-3,7,3,-4,7,3,-5,7,4,-6,10,4,-6,10,4,-7,10,5,-7,9,5,-8,9,5,-9,4,6,-9,5,6,-9,5,6,-10,2,6,-10,2/
-2,-1,7,3,-1,7,3,-1,7,4,-1,7,4,-1,7,5,-2,7,5,-2,7,6,-2,10,6,-2,10,7,-2,10,7,-2,10,8,-3,10,8,-3,9,9,-3,9,9,-3,9,9,-3,4,10,-3,4,10,-3,4,10,-3,5
-]]
+
+
+-- <record & playback> --------------------
+_b0=btn
+function record() _bm=1 _bp=1 _bt=0 _bd="" end
+function playback() _bm=2 _bp=1 _bt=0 end
+function btn(p)
+  local b=_b0()
+  if _bm==1 then -- record
+    if b!=_bl then
+      if _bd>"" then _bd=_bd.._bt.."," else _bd="" _bt=0 _bp=1 end
+      _bl=b _bd=_bd..b.."," _bt=0
+    else _bt+=1 end
+    if _b0()==4096 then -- tab to stop recording
+      printh("btnpb={"..sub(_bd,1,#_bd-1).."}\n","@clip")
+      stop()
+    end
+    return _b0(p)
+  elseif _bm==2 then -- playback
+    if _bt>0 then _bt-=1 
+    else
+      _bs=btnpb[_bp]
+      _bt=btnpb[_bp+1]
+      _bp+=2
+      if _bt==nil then
+				_bm=0
+				if playback_repeat then
+					start_playback()
+				end
+			end
+    end
+    if p==nil then return _bs
+    elseif band(_bs,2^p)>0 then return true
+    else return false end
+  else
+    return _b0(p)
+  end
+end
 
 
 
@@ -168,10 +191,11 @@ function round(n) return flr(n+.5) end
 function swap(v) if v==0 then return 1 else return 0 end end -- 1 0 swap
 function clamp(a,min_v,max_v) return min(max(a,min_v),max_v) end
 function rndf(lo,hi) return lo+rnd()*(hi-lo) end -- random real number between lo and hi
-function rndi(n) return round(rnd()*n) end -- random int
-function printa(t,x,y,c,align,shadow) -- 0.5 center, 1 right align
-	x-=align*4*#(tostr(t))
-	if (shadow) ?t,x+1,y+1,0
+-- function rndi(n) return round(rnd()*n) end -- random int
+function rndi(n) return flr(rnd(n)) end -- random int
+function printa(t,x,y,c,align,shadow,shadow_color) -- 0.5 center, 1 right align
+	x-=(align or 0)*4*#(tostr(t))
+	if (shadow) ?t,x+1,y+1,shadow_color or 0
 	?t,x,y,c
 end
 
@@ -313,15 +337,17 @@ function space:_draw()
 	-- for i,v in pairs(self.particles) do
 	for v in all(self.particles) do
 		if v.type=="thrust" then
-			fillp(cover_pattern[10-clamp(flr(v.age*0.38),0,9)])
+			fillp(cover_pattern[10-clamp(flr(v.age*0.3),0,9)])
 			circfill(v.x,v.y,1,7)
+			fillp()
 			v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
 			v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
-			fillp()
 			if(v.age>v.age_max) del(self.particles,v)
 
 		elseif v.type=="smoke" then
+			fillp(cover_pattern[10-clamp(flr(v.age*0.1),0,9)])
 			circfill(v.x,v.y,1.5+(v.age/60)*6,0)
+			fillp()
 			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(2)-1
 			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(2)-1
 			if(v.age>80) del(self.particles,v)
@@ -371,15 +397,8 @@ function space:_draw()
 			elseif v.type=="bullet_enemy" then
 				circfill(v.x,v.y,1,9+rndi(3))
 				circfill(v.x,v.y,0,8)
-
-				-- todo: 플레이어와 충돌 처리를 하자!
-
 				local dist=5
 				if not _ship.is_killed and abs(v.x-cx)<=dist and abs(v.y-cy)<=dist and get_dist(v.x,v.y,cx,cy)<=dist then
-					--[[ _ship.hit_count=8
-					add_hit_eff(v.x,v.y,atan2(cx-v.x,cy-v.y))
-					del(self.particles,v)
-					sfx(2,-1) ]]
 					_ship:kill()
 				end
 			end
@@ -455,7 +474,7 @@ function ship:init()
 	self.spd_max=0.7
 	self.angle=0
 	self.angle_acc=0
-	self.angle_acc_pow=0.0004
+	self.angle_acc_pow=0.0006 -- default 0.0004
 	self.thrust=0
 	self.thrust_acc=0
 	self.thrust_max=1.4
@@ -464,9 +483,9 @@ function ship:init()
 	self.fire_spd=2.2 -- 1.4 -> 3.0
 	self.fire_intv=0
 	self.fire_intv_full=6 -- 20 -> 5
-	self.bomb_spd=0.7
-	self.bomb_intv=0
-	self.bomb_intv_full=60
+	-- self.bomb_spd=0.7
+	-- self.bomb_intv=0
+	-- self.bomb_intv_full=60
 	self.hit_count=0
 	self.is_killed=false
 	self.killed_angle=0.65
@@ -532,7 +551,7 @@ function ship:on_update()
 	local to_angle=self.angle
 	if self.is_killed then
 		to_angle=self.killed_angle+cos(f/60)*0.03
-	elseif gdata.control then
+	elseif gg.control then
 		if btn(1) and btn(2) then to_angle=0.125
 		elseif btn(2) and btn(0) then to_angle=0.375
 		elseif btn(0) and btn(3) then to_angle=0.625
@@ -541,10 +560,10 @@ function ship:on_update()
 		elseif btn(1) then to_angle=0
 		elseif btn(2) then to_angle=0.25
 		elseif btn(3) then to_angle=0.75 end
-	elseif gdata.control_waiting>0 then
-		gdata.control_waiting-=1
-		if gdata.control_waiting<=0 then
-			gdata.control=true
+	elseif gg.control_waiting>0 then
+		gg.control_waiting-=1
+		if gg.control_waiting<=0 then
+			gg.control=true
 			_enemies:set_enemies(7)
 		end
 	end
@@ -583,7 +602,6 @@ function ship:on_update()
 	local spd=self.spd_max+sin(self.angle)*0.2 -- 하강속도 약간 더 빠르게
 	self.spd_x=cos(self.angle)*spd
 	self.spd_y=sin(self.angle)*spd
-
 	
 	if(self.is_killed) goto continue -- 죽었으면 공격 불가
 
@@ -610,6 +628,7 @@ function ship:on_update()
 
 	-- bomb
 	-- todo: 폭탄 인터벌이든 뭐든 처리해야 함
+	--[[ 
 	self.bomb_intv-=1
 	if btn(5) and self.bomb_intv<=0 then
 		sfx(6,-1)
@@ -627,34 +646,25 @@ function ship:on_update()
 			age_max=120,
 			age=1
 		})
-	end
+	end ]]
 
 	::continue::
 
 	-- 분사효과 or 검은연기
 	if self.is_killed then
-		add(_space_f.particles,
-			{
-				type="smoke",
-				x=self.tail.x+rnd(0.6)-0.3,
-				y=self.tail.y+rnd(0.6)-0.3,
-				sx=-self.spd_x*1.5,
-				sy=-self.spd_y*1.5,
-				age=1
-			})
+		add_smoke_eff(self.tail.x+rnd(0.6)-0.3,self.tail.y+rnd(0.6)-0.3,-self.spd_x*1.5,-self.spd_y*1.5)
 	else
 		add(_space.particles,
 			{
 				type="thrust",
-				x=self.tail.x+rnd(0.6)-0.3,
-				y=self.tail.y+rnd(0.6)-0.3,
-				sx=-self.spd_x*1.5,
-				sy=-self.spd_y*1.5,
+				x=self.tail.x,
+				y=self.tail.y,
+				sx=-self.spd_x*1.3,
+				sy=-self.spd_y*1.3,
 				age_max=50,
 				age=1
 			})
 	end
-
 
 	-- speed limit
 	--[[ local spd=sqrt(self.spd_x^2+self.spd_y^2)
@@ -693,12 +703,12 @@ function ship:on_update()
 	_space_f.spd_y=-self.spd_y
 	
 	-- Space의 중심을 살짝 옮겨서 전방 시야 확보(비행기 방향만 고려)
-	-- local dst=gdata.scene=="title" and 0 or max(0,40-gdata.control_waiting)/40*14
+	-- local dst=gg.scene=="title" and 0 or max(0,40-gg.control_waiting)/40*14
 	-- if self.is_killed then dst=-40 end
 	local dst=
-		gdata.scene=="title" and 0 or
+		gg.scene=="title" and 0 or
 		self.is_killed and max(-50,-self.timer_killed/2) or
-		max(0,40-gdata.control_waiting)/40*14
+		max(0,40-gg.control_waiting)/40*14
 	local tcx=64-cos(self.angle)*dst
 	local tcy=64-sin(self.angle)*dst
 	_space.spd_cx=(tcx-cx)*0.12
@@ -712,11 +722,14 @@ end
 function ship:kill()
 	music(-1,1000,3)
 	sfx(3,-1)
+	shake()
 	add_explosion_eff(self.tail.x,self.tail.y,self.spd_x,self.spd_y,false,true)
 	self.is_killed=true
 	self.timer_killed=0
 	self.killed_angle=(self.angle>0.25 and self.angle<0.75) and 0.65 or 0.85
-	gdata.control=false
+	gg.control=false
+	gg.planes-=1
+	_ui:show(false)
 	_cover:cover_killed()
 end
 
@@ -725,9 +738,8 @@ function ship:rebirth()
 	self.is_killed=false
 	self.timer_killed=0
 	self.angle=0
-	gdata.control=true
-
-	--todo: 무적시간 넣어야 하는데...
+	gg.control=true
+	_ui:show(true)
 end
 
 
@@ -776,9 +788,9 @@ function enemies:_draw()
 							type="bullet_enemy",
 							x=e.x+e.spd_x*16,
 							y=e.y+e.spd_y*16,
-							sx=cos(e.angle)*0.6,
-							sy=sin(e.angle)*0.6,
-							age_max=150,
+							sx=cos(e.angle)*0.7,
+							sy=sin(e.angle)*0.7,
+							age_max=240,
 							age=1
 						})
 					end
@@ -867,9 +879,8 @@ function enemies:_draw()
 				if f%6<3 then palt(12,true) pal{[10]=7} else palt(10,true) pal{[12]=7} end
 			end
 
-			if e.type==4 then
+			if e.type==4 then -- 낙하산
 				pal()
-				-- pal(dim_pal)
 				sspr(40,32,9,5,e.x-4,e.y-4)
 				if abs(e.spd_x)>0.3 then
 					sspr(40,37,9,3,e.x-4,e.y+1)
@@ -882,8 +893,12 @@ function enemies:_draw()
 					rect(e.x,e.y+4,e.x+2,e.y+5,2)
 				end
 			elseif e.type==3 then
-				-- pal()
 				spr(32,e.x-7,e.y-7,2,2)
+
+				-- hp가 낮으면 연기
+				if e.hp<15 and f%(max(4,e.hp))==0 then
+					add_smoke_eff(e.x-e.spd_x*25,e.y-2,-e.spd_x*(1.2+rnd(0.8)),-0.2-rnd(0.4))
+				end
 			else
 				local s=get_spr(e.angle)
 				sspr(s.spr*8,0,16,16,e.x-4,e.y-4,16*0.6,16*0.6,s.fx,s.fy)
@@ -891,7 +906,6 @@ function enemies:_draw()
 			-- circ(e.x,e.y,22,11)
 		end
 		pal()
-		-- pal(dim_pal)
 	end
 end
 
@@ -927,10 +941,13 @@ end
 -- <cover> --------------------
 cover=class(sprite)
 function cover:init()
-	-- self:show(true)
 	self.timer=0
 	self.use_dim=false
 	self.cover_w=0
+	self.cover_h=0
+	self.cx=0
+	self.cy=0
+	self.show_gameover=false
 end
 function cover:cover_killed()
 	self:show(true)
@@ -939,33 +956,79 @@ function cover:cover_killed()
 	self:on("update",self.on_cover)
 end
 function cover:_draw()
-	if(self.use_dim) pal(dim_pal,1)
-	draw_outcover(self.cover_w,self.cover_w,0,cx,cy)
+	if self.use_dim then pal(dim_pal,1) else pal() end
+	draw_outcover(self.cover_w,self.cover_h,0,self.cx,self.cy,4)
+
+	-- game over면 여기서 입력 대기
+	if self.show_gameover then
+		self.cx=62+rnd(4)
+		self.cy=86+rnd(2)
+		printa("\^w\^tgame over",28,66,0,0,true,12)
+		if(f%60<40) printa("press 🅾️❎ to coutinue",20,80,0,0,true,12)
+		if btn(4) or btn(5) then
+			self.show_gameover=false
+			self:on("update",self.on_cover_to_title)
+		end
+	end
 end
 function cover:on_cover()
 	_ship.timer_killed+=1
 	self.timer+=1
+
+	-- 게임오버면 커버를 완전히 덮지 않고 추락 상황을 계속 유지하면서 game over 표기
+	-- 그게 아니면 완전히 닫고 부활 or 다음 스테이지로...
+	local is_gameover=gg.planes<0
 	self.cover_w=max(0,500-self.timer*2.5)
-	if self.cover_w<=0 then
+	self.cover_h=self.cover_w/2
+	self.cx=cx
+	self.cy=cy
+
+	if is_gameover then
+		self.cx=62+rnd(4)
+		self.cy=86+rnd(2)
+		if self.cover_w<=124 then
+			self.timer=0
+			self.show_gameover=true
+			self:remove_handler("update",self.on_cover)
+			-- 여기서 멈추고 입력 대기
+		end
+	elseif self.cover_w<=0 then
 		self.timer=0
 		self.use_dim=false
-		self:on("update",self.on_hide)
+		self.cx=64
+		self.cy=64
+		_ship:rebirth()
+		self:on("update",self.on_uncover)
 		self:remove_handler("update",self.on_cover)
-		gdata.planes-=1
-		if gdata.planes>0 then
-			_ship:rebirth()
-		else
-			--todo: 게임오버 + 타이틀 화면으로...
-			_ship:rebirth()
-		end
 	end
 end
-function cover:on_hide()
+function cover:on_cover_to_title()
+	self.cover_w-=4
+	self.cover_h-=2
+	if self.cover_w<=-100 then
+		
+		-- todo:여기서 타이틀로 보내야 하는데...
+		-- todo:여기서 타이틀로 보내야 하는데...
+		-- todo:여기서 타이틀로 보내야 하는데...
+
+		self.use_dim=false
+		_ship:rebirth()
+		_space.particles={}
+		_enemies.list={}
+		_space_f.particles={}
+		gg_reset()
+
+		self:on("update",self.on_uncover)
+		self:remove_handler("update",self.on_cover_to_title)
+	end
+end
+function cover:on_uncover()
 	self.timer+=1
 	self.cover_w=self.timer*3-90
+	self.cover_h=self.cover_w
 	if self.cover_w>=160 then
 		self:show(false)
-		self:remove_handler("update",self.on_hide)
+		self:remove_handler("update",self.on_uncover)
 	end
 end
 
@@ -977,6 +1040,22 @@ end
 -- 	if(abs(y2-y1)>r) return false
 -- 	return true
 -- end
+
+-- 화면 흔들기
+function shaking()
+	if shake_t>0 then
+		local n=0.3+shake_t/10
+		if(shake_t%2==0) camera(rnd(n)-n/2,rnd(n)-n/2)
+		shake_t-=1
+	else
+		camera(0,0)
+		stage:remove_handler("update",shaking)
+	end
+end
+function shake()
+	shake_t=90
+	stage:on("update",shaking)
+end
 
 -- 회전할 방향 구하기(반시계 1, 시계 -1)
 function get_rotate_dir(from,to)
@@ -1099,20 +1178,23 @@ function add_hit_eff(x,y,angle)
 		})
 	end
 end
+function add_smoke_eff(x,y,sx,sy)
+	add(_space_f.particles,{type="smoke",x=x,y=y,sx=sx,sy=sy,age=1})
+end
 
 function add_score(num)
-	gdata.score=min(gdata.score+num/10000,10000)
+	gg.score=min(gg.score+num/10000,10000)
 
 	-- bonus
-	if gdata.bonus_earned<=0 then
-		if gdata.score>=1 then
-			gdata.bonus_earned=1
-			gdata.planes+=1
+	if gg.bonus_earned<=0 then
+		if gg.score>=1 then
+			gg.bonus_earned=1
+			gg.planes+=1
 			add(_space_f.particles,{type="bonus",is_first=true,age=1})
 		end
-	elseif gdata.score\5+1>gdata.bonus_earned then
-		gdata.bonus_earned=gdata.score\5+1
-		gdata.planes+=1
+	elseif gg.score\5+1>gg.bonus_earned then
+		gg.bonus_earned=gg.score\5+1
+		gg.planes+=1
 		add(_space_f.particles,{type="bonus",age=1})
 	end
 	
@@ -1140,6 +1222,31 @@ function print_score(num,len,x,y)
 	printa(t,x+len*4,y,9,1)
 end
 
+function draw_outcover(w,h,c,cx,cy,mg)
+	local cx=cx and cx or 64
+	local cy=cy and cy or 64
+	local mg=mg or 0 -- 화면 밖까지 그릴 마진(화면 진동할 때 필요)
+
+	--[[ if (cy-1-h/2>=0) rectfill(0,0,127,cy-1-h/2,c)
+	if (cy+h/2<128) rectfill(0,cy+h/2,127,127,c)
+	if (cx-1-w/2>=0) rectfill(0,cy-h/2,cx-1-w/2,cy-1+h/2,c)
+	if (cx+w/2<128) rectfill(cx+w/2,cy-h/2,127,cy-1+h/2,c) ]]
+	if (cy-1-h/2>=-mg) rectfill(-mg,-mg,127+mg,cy-1-h/2,c)
+	if (cy+h/2<128+mg) rectfill(-mg,cy+h/2,127+mg,127+mg,c)
+	if (cx-1-w/2>=-mg) rectfill(-mg,cy-h/2,cx-1-w/2,cy-1+h/2,c)
+	if (cx+w/2<128+mg) rectfill(cx+w/2,cy-h/2,127+mg,cy-1+h/2,c)
+
+	local ww="6421100"
+	local x1,y1=cx-w/2,cy-1-h/2
+	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,c) end
+	x1=cx-1+w/2
+	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,c) end
+	y1=cy+h/2
+	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,c) end
+	x1=cx-w/2
+	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end
+end
+
 
 
 -- <ui> --------------------
@@ -1152,28 +1259,9 @@ function ui:init()
 	self.kill_4=0
 end
 function ui:_draw()
--- ui._draw=function()
-	rectfill(0,121,127,127,0)
+	rectfill(-3,121,130,130,0)
 
-	--[[ 
-	local v1=tostr(min(999,ui.kill_1))
-	local v2=tostr(min(999,ui.kill_2))
-	local v3=tostr(min(999,ui.kill_3))
-	local v4=tostr(min(999,ui.kill_4))
-
-	spr(84,1,122)
-	print_score(v1,"",3,7,122)
-
-	pal{[3]=8} spr(84,22,122) pal(dim_pal)
-	print_score(v2,"",3,28,122)
-
-	spr(85,43,122)
-	print_score(v3,"",3,50,122)
-
-	-- spr(86,64,122)
-	-- print_score(v4,"",3,70,122)
-	]]
-
+	-- 남은 자코 게이지
 	for i=0,8 do spr(84,1+i*6,122) end
 	local w=9*6-1
 	-- rectfill(1+w-(w*min(1,ui.kill_1/30)),122,1+w,126,0)
@@ -1184,85 +1272,52 @@ function ui:_draw()
 		end
 	end
 
-
 	spr(207,61,122)
-	?gdata.planes,70,122,8
-
-	-- ?"score:",72,122,5
-	-- print_score(gdata.score,8,96,122)
-	print_score(gdata.score,8,82,122)
+	?gg.planes,70,122,8
+	print_score(gg.score,8,82,122)
 	?"pts",116,122,5
 end
 
 
 
 -- <title> --------------------
-function draw_outcover(w,h,c,cx,cy)
-
-	local cx=cx and cx or 64
-	local cy=cy and cy or 64
-
-	if (cy-1-h/2>=0) rectfill(0,0,127,cy-1-h/2,c)
-	if (cy+h/2<128) rectfill(0,cy+h/2,127,127,c)
-	if (cx-1-w/2>=0) rectfill(0,cy-h/2,cx-1-w/2,cy-1+h/2,c)
-	if (cx+w/2<128) rectfill(cx+w/2,cy-h/2,127,cy-1+h/2,c)
-
-	local ww="6421100"
-	local x1,y1=cx-w/2,cy-1-h/2
-	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,c) end
-	x1=cx-1+w/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,c) end
-	y1=cy+h/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,c) end
-	x1=cx-w/2
-	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end
-
-	--[[ if (63-h/2>=0) rectfill(0,0,127,63-h/2,c)
-	if (64+h/2<128) rectfill(0,64+h/2,127,127,c)
-	if (63-w/2>=0) rectfill(0,64-h/2,63-w/2,63+h/2,c)
-	if (64+w/2<128) rectfill(64+w/2,64-h/2,127,63+h/2,c)
-
-	local ww="6421100"
-	local x1,y1=64-w/2,63-h/2
-	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,c) end
-	x1=63+w/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,c) end
-	y1=64+h/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,c) end
-	x1=64-w/2
-	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end ]]
+title=class(sprite)
+function title:init()
+	self:reset()
+	self:show(true)
 end
-function draw_title()
-	local r=(40-tdata.timer_to_sky)/40 -- 다음 장면으로 넘어가는 비율
-	
+function title:reset()
+	self.to_sky=false
+	self.tran_timer=40
+	self.tran_timer_max=40
+end
+function title:_draw()
+	if(gg.scene=="title") self:draw_title()
+end
+function title:draw_title()
+	local r=(self.tran_timer_max-self.tran_timer)/self.tran_timer_max -- 다음 장면으로 넘어가는 비율
 	local d1,d2=sin(f%90/90),cos(f%90/90)
 	draw_outcover(116+d1*8+r*20,60+d2*8+r*76,0)
 	palt(3,true) palt(0,false) sspr(32,48,97,16,14,25-d2*6-r*50) palt()
 	printa("demake 2022",64,39-d2*6-r*50,7,0.5,true)
 
-	if not tdata.to_sky then
-		if (f%40<26) printa("press 🅾️❎ to play",63,86+d2*4,0,0.5)
-
-		-- ?"by 🐱seimon,♪music by gruber",6,121,5
-		-- printa("& every 50000 pts",64,110,6,0.5)
+	if not self.to_sky then
+		if(f%60<40) printa("press 🅾️❎ to play",63,86+d2*4,0,0.5)
 		?"1st bonus \f410000\f5 pts",26,98+d2*4,5
 		?"& every \f450000\f5 pts",30,104+d2*4,5
-		-- ?"by 🐱seimon,♪gruber",6,121,5
-		-- line(0,120,127,120,5)
 		?"……… by 🐱seimon,♪gruber ………",-4,122,5
 		
-
-		
-		if (dev==1) ?"v"..ver,1,1,1
-		if (btn(4) or btn(5)) tdata.to_sky=true
+		if(dev==1) ?"v"..ver,1,1,1
+		if(btn(4) or btn(5)) self.to_sky=true self.tran_timer=self.tran_timer_max
 	end
 
 	-- 장면 전환하다가 타이머 0되면 씬 이름 변경(=더 이상 title을 그리지 않음)
-	if tdata.to_sky then
-		tdata.timer_to_sky-=1
-		if tdata.timer_to_sky<=0 then
-			gdata.scene="sky"
-			gdata.control_waiting=150
+	if self.to_sky then
+		self.tran_timer-=1
+		if self.tran_timer<=0 then
+			self:reset()
+			gg.scene="sky"
+			gg.control_waiting=150
 			add(_space_f.particles,
 			{
 				type="stage_info",
@@ -1273,53 +1328,58 @@ function draw_title()
 		end
 	end
 end
-
+--[[ function title:draw_gameover()
+	-- draw_outcover(90,60,0)
+	-- printa("game over",64,62,11,0.5)
+	-- printa("\^w\^tgame over",28,50,7,0,true)
+	printa("\^w\^tgame over",28,50,7,0,true)
+	printa("press 🅾️❎ to coutinue",20,68,7,0,true)
+end ]]
 
 
 
 
 --------------------------------------------------
 f=0 -- every frame +1
+stage=sprite.new() -- scene graph top level object
+cx,cy=64,64 -- space center
 
--- dim_pal_colors="1212114522311140"
 dim_colors="0020028088222280"
 dim_pal={}
 for i=1,16 do dim_pal[i]=sub(dim_colors,i,_) end
 
-stage=sprite.new() -- scene graph top level object
-cx,cy=64,64 -- space center
-
-tdata={ -- 화면 전환 정보
-	to_sky=false,
-	timer_to_sky=40,
-}
-gdata={ -- 게임 데이타
-	scene="title",
-	control=false,
-	control_waiting=0,
-	stage=1,
-	planes=3,
-	score=0,
-	bonus_earned=0,
-	highscore=0,
-}
+gg={} -- 게임 데이타
+gg_reset=function()
+	gg={
+		scene="title",
+		is_gameover=false,
+		control=false,
+		control_waiting=0,
+		stage=1,
+		planes=3,
+		score=0,
+		bonus_earned=0,
+		highscore=0,
+	}
+end
 
 function _init()
+	gg_reset()
 	music(0,nil,3)
 	music(18,1000,3)
-
 	_space=space.new()
-	_space_f=space.new(true) -- front layer
 	_ship=ship.new()
 	_enemies=enemies.new()
+	_space_f=space.new(true) -- front layer
 	_ui=ui.new()
+	_title=title.new()
 	_cover=cover.new()
-
 	stage:add_child(_space)
 	stage:add_child(_ship)
 	stage:add_child(_enemies)
 	stage:add_child(_space_f)
 	stage:add_child(_ui)
+	stage:add_child(_title)
 	stage:add_child(_cover)
 end
 function _update60()
@@ -1328,20 +1388,7 @@ function _update60()
 end
 function _draw()
 	cls(12)
-	
-	-- if(#dim_pal>0) pal(dim_pal,0)
-
-	rectfill(0,0,127,127,12)
 	stage:render(0,0)
-	-- ui._draw()
-	
-	if(gdata.scene=="title") draw_title()
-
-	-- 죽으면 화면 뻘겋게
-	--[[ if _ship.is_killed then
-		_ship.timer_killed+=1
-		pal(dim_pal,1)
-	end ]]
 
 	-- 개발용
 	if dev==1 then
@@ -1349,3 +1396,17 @@ function _draw()
 		print_system_info()
 	end
 end
+
+
+
+--[[ todo list
+- 스코어 시스템 교체(아스테로이드에 쓴 변수 2개 쓰는 방식)
+- 죽으면 적들 다 제거 ********
+- 죽고 부활하는 시점에 적, 파티클 싹 날리자
+- 상황에 맞게 자코, 보스 출격시키기
+- 자코들 출격할 때 편대비행?
+- 스테이지 진행
+- X 버튼 기능 추가(뭐인지 원작 살펴봐야 함) -> 원작에 암것도 없는데?????
+- 게임 플레이 루프 -> 다 죽으면 타이틀로 돌아가는 것까지는 했다!
+- 녹화&재생 기능
+]]
