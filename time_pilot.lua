@@ -1,5 +1,5 @@
 dev=0
-ver="0.44" -- 2022/07/23
+ver="0.50" -- 2022/07/25
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -274,6 +274,7 @@ function space:_draw()
 	end ]]
 
 	-- 구름
+	pal({[7]=ss.cloud_color,[6]=ss.cloud_far_color}) -- 구름 색을 스테이지 정보에 맞춤
 	for i,v in pairs(self.stars) do
 		local x=v.x-self.spd_x*v.spd
 		local y=v.y+self.spd_y*v.spd
@@ -312,28 +313,23 @@ function space:_draw()
 			spr(65,x2-4,y2-2)
 			spr(64,x2,y2-2)
 			spr(66,x2+6,y2-1)
-		elseif v.size<=1 then
-			local c=ss.sky_color
+		elseif v.size<=1 then -- 원경 단색 구름
+			color(ss.cloud_far_color)
 			if(v.size==0) fillp(cover_pattern[5])
-			if i%2==0 then
-				circfill(x2-5,y2+1,2,c)
-				circfill(x2,y2,4,c)
-				circfill(x2+6,y2+1,2,c)
-			else
-				circfill(x2-5,y2+1,2,c)
-				circfill(x2,y2,3,c)
-				circfill(x2+4,y2+1,2,c)
+			if i%2==0 then circfill(x2-5,y2+1,2) circfill(x2,y2,4) circfill(x2+6,y2+1,2)
+			else circfill(x2-5,y2+1,2) circfill(x2,y2,3) circfill(x2+4,y2+1,2)
 			end
 			fillp()
 		end
 	end
+	pal()
 
 	-- particles
-	-- for i,v in pairs(self.particles) do
 	for v in all(self.particles) do
 		if v.type=="thrust" then
 			fillp(cover_pattern[10-clamp(flr(v.age*0.3),0,9)])
-			circfill(v.x,v.y,1,7)
+			-- circfill(v.x,v.y,1,7)
+			circfill(v.x,v.y,1,ss.cloud_color)
 			fillp()
 			v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
 			v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
@@ -348,7 +344,8 @@ function space:_draw()
 			if(v.age>80) del(self.particles,v)
 		
 		elseif v.type=="enemy_trail" then
-			pset(v.x,v.y,7)
+			-- pset(v.x,v.y,7)
+			pset(v.x,v.y,ss.cloud_color)
 			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(0.6)-0.3
 			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(0.6)-0.3
 			if(v.age>v.age_max) del(self.particles,v)
@@ -365,21 +362,19 @@ function space:_draw()
 			if v.type=="bullet" then
 				line(ox,oy,v.x,v.y,c)
 				local dist=6
-				-- for j,e in pairs(_enemies.list) do
 				for e in all(_enemies.list) do
 					if(e.type==999) goto continue -- 낙하산은 아래 처리 건너뜀
-					if(e.type>100 and e.type<200) dist=8 -- 보스급은 충돌 영역 크게
+					if(e.type>200 and e.type<300) dist=8 -- 보스급은 충돌 영역 크게
 					if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then
 						e.hp-=1
 						if e.hp<=0 then
 							if(e.type<100) _ui.kill_zako+=1 add_score(100)
-							if e.type>100 and e.type<200 then -- 보스
+							if e.type>200 and e.type<300 then -- 보스
 								_ui.kill_boss+=1
 								add_score(1500)
 								add(_space.particles,{type="score",value=1500,x=e.x,y=e.y,age=1})
 								_enemies:boss_kill()
 							end
-							-- _enemies:add(-140-rndi(5)*10,rndi(8)*10-35,e.type) -- 다른 어딘가에서 부활
 							add_explosion_eff(e.x,e.y,v.sx,v.sy)
 							del(_enemies.list,e)
 							sfx(3,-1)
@@ -459,16 +454,17 @@ function space:_draw()
 			if(v.age>180) del(self.particles,v)
 
 		elseif v.type=="time_jump" then
-			if f%5<3 then
-				local w=min(50,v.age*0.6)+rnd(20)
-				if(v.age>120) w=(180-v.age)/2
+			local delay=60 -- 초반 딜레이만큼 기다림
+			if v.age>delay and f%5<3 then
+				local w=min(50,(v.age-delay)*0.6)+rnd(20)
+				if(v.age>180+delay) w=(240+delay-v.age)/2
 				circfill(cx,cy,min(w,8+rnd(3)),7)
 				ovalfill(cx-w/3,cy-4,cx+w/3,cy+4,7)
 				ovalfill(cx-w/1.5,cy-2,cx+w/1.5,cy+2,7)
 				ovalfill(cx-w,cy-1,cx+w,cy+1,7)
 				line(cx-w*1.4,cy,cx+w*1.4,cy,7)
 			end
-			if(v.age>180) del(self.particles,v)
+			if(v.age>240+delay) del(self.particles,v)
 		end
 		v.age+=1
 	end
@@ -629,14 +625,15 @@ function ship:on_update()
 	end
 
 	-- 임시로 타임점프 이펙트 붙이기
-	--[[ 
-	if btn(5) and self.fire_intv<=0 then
-		self.fire_intv=self.fire_intv_full
+	-- if btn(5) and self.fire_intv<=0 then
+	if dev==1 and btn(5) and _enemies.boss_killed==false then
+		-- self.fire_intv=self.fire_intv_full
+		_enemies:boss_kill()
+		--[[ self.fire_intv=self.fire_intv_full
 		add(_space.particles,{type="time_jump",age=0})
 		self.time_jump_mode=true
-		_cover:cover_cleared()
+		_cover:cover_cleared() ]]
 	end
- ]]
 
 	-- bomb
 	-- todo: 폭탄 인터벌이든 뭐든 처리해야 함
@@ -665,7 +662,8 @@ function ship:on_update()
 	-- 분사효과 or 검은연기
 	if self.is_killed then
 		add_smoke_eff(self.tail.x+rnd(0.6)-0.3,self.tail.y+rnd(0.6)-0.3,-self.spd_x*1.5,-self.spd_y*1.5)
-	else
+	-- else
+	elseif not _cover.is_stage_clear then
 		add(_space.particles,
 			{
 				type="thrust",
@@ -714,6 +712,7 @@ function ship:on_update()
 	_space_f.spd_y=-self.spd_y
 	
 	-- Space의 중심을 살짝 옮겨서 전방 시야 확보(비행기 방향만 고려)
+	-- 단, gg.control_waiting이 있을 때는 정중앙에 표시하다가 서서히 옮겨 감
 	-- local dst=gg.scene=="title" and 0 or max(0,40-gg.control_waiting)/40*14
 	-- if self.is_killed then dst=-40 end
 	local dst=
@@ -854,7 +853,8 @@ function enemies:_draw()
 		e.y=e.space_y+cy
 		
 		if e.type<100 then -- 자코들은 정기적으로 비행 방향 업데이트 + 공격
-			if (f+i*8)%60==0 then
+			-- if (f+i*8)%60==0 then
+			if (f+i*10)%90==0 then
 				local to_angle=atan2(cx-e.x,cy-e.y)
 				local angle_dist=value_loop_0to1(e.angle-to_angle)
 				if angle_dist>0.2 then
@@ -882,7 +882,7 @@ function enemies:_draw()
 					-- line(e.x,e.y,cx,cy,11)
 				end
 			end
-		elseif e.type>100 and e.type<200 then -- 보스는 전방위로 공격
+		elseif e.type>200 and e.type<300 then -- 보스는 전방위로 공격
 			-- 전방위 공격
 			if e.x>0 and e.y>0 and e.x<127 and e.y<127 and f%60==0 then
 				local to_angle=atan2(cx-e.x,cy-e.y)+rnd(0.08)-0.04
@@ -915,8 +915,8 @@ function enemies:_draw()
 		if f%3==0 and e.type!=999 then
 			local x,y=e.x-e.spd_x*12,e.y-e.spd_y*12
 			local sx,sy=-e.spd_x*1.8,-e.spd_y*1.8
-			if e.type>100 then
-				x,y=e.x-9
+			if e.type>100 then -- 중간보스, 보스(오른쪽으로만 비행)
+				x=e.x-9
 				y=e.y+rnd()
 				sx=-0.9
 				sy=0
@@ -944,8 +944,9 @@ function enemies:_draw()
 			e.y=y+cy
 		end
 		
-		if(e.type==2) pal{[11]=8} -- 자코 빨간 비행기
-		if(e.type>100 and e.type<200) pal{[11]=10}
+		-- 화면 밖 인디케이터용 색상
+		if(e.type==2) pal{[11]=8} -- 빨간 자코
+		if(e.type>200 and e.type<300) pal{[11]=10} -- 보스(노란색)
 
 		if e.x<-4 then -- 화면 밖에 있을 때는 테두리 인디케이터만 표시
 			spr(80,0,clamp(e.y-4,4,118-7))
@@ -960,7 +961,9 @@ function enemies:_draw()
 				e.hit_count-=1
 				pal({6,6,6,6,6,7,7,6,7,7,7,7,7,7,7,6})
 			else
-				if(e.type==2) pal({[3]=8,[15]=9,[5]=4}) -- 자코 빨간 비행기 동체 색 교체
+				if(e.type==2) pal({[3]=8,[15]=9,[5]=4}) -- 자코 빨간 비행기 색상
+				if(e.type==3) pal({[3]=12,[15]=6,[5]=13}) -- 자코 파란 비행기 색상
+				if(e.type==202) pal({[15]=13,[14]=5,[2]=4,[12]=1}) -- 임시 피통 큰 보스
 				if f%6<3 then palt(12,true) pal{[10]=7} else palt(10,true) pal{[12]=7} end -- 프로펠러 회전(팔레트로 처리)
 			end
 
@@ -977,9 +980,10 @@ function enemies:_draw()
 					sspr(49,37,9,3,e.x-5,e.y+1,9,3,true)
 					rect(e.x,e.y+4,e.x+2,e.y+5,2)
 				end
-			elseif e.type>100 and e.type<200 then -- 보스(회전 없이 고정 스프라이트 출력)
+			elseif e.type>200 and e.type<300 then -- 보스(회전 없이 고정 스프라이트 출력)
 				spr(32,e.x-7,e.y-7,2,2)
-				if e.hp<15 and f%(max(4,e.hp))==0 then -- hp가 낮으면 연기 추가
+				-- if e.hp<15 and f%(max(4,e.hp))==0 then -- hp가 낮으면 연기 추가
+				if e.hp<e.hp_max and f%(max(4,e.hp/4))==0 then -- hp가 낮으면 연기 추가
 					add_smoke_eff(e.x-e.spd_x*25,e.y-2,-e.spd_x*(1.2+rnd(0.8)),-0.2-rnd(0.4))
 				end
 
@@ -994,11 +998,13 @@ function enemies:_draw()
 end
 
 function enemies:add(x,y,t,ang)
-	local hp,spd=0,0
-	if(t==1) hp,spd=1,0.3 -- 자코(파란 비행기)
-	if(t==2) hp,spd=8,0.4 -- 자코(빨간 비행기)
-	if(t==101) hp,spd=3,0.2 -- 스테이지1 보스
-	-- if(t==999) -- 낙하산...은 hp, spd 안 씀
+	local hp,hp_max,spd=1,1,0
+	if(t==1) spd=0.3 -- 자코(초록 비행기)
+	if(t==2) spd=0.4 -- 자코(빨간 비행기)
+	if(t==3) hp,spd=3,0.4 -- 자코(파란 비행기)
+	if(t==101) hp,hp_max,spd=8,8,0.4 -- 중간보스(아직 뭐 없음.........)
+	if(t==201) hp,hp_max,spd=10,20,0.2 -- 스테이지1 보스
+	if(t==202) hp,hp_max,spd=100,100,0.2 -- 스테이지5 보스(임시로 피통 크게)
 
 	local e={
 		x=0,
@@ -1013,6 +1019,7 @@ function enemies:add(x,y,t,ang)
 		space_x=x,
 		space_y=y,
 		hp=hp,
+		hp_max=hp_max,
 		hit_count=0,
 		type=t,
 	}
@@ -1033,18 +1040,20 @@ function cover:init()
 	self.show_gameover=false
 	self.is_stage_clear=false
 end
-function cover:cover_killed()
+function cover:cover_killed() -- 죽었을 때 커버 씌우기
 	self:show(true)
 	self.timer=0
 	self.use_dim=true
+	ss.sky_color=12 ss.cloud_color=7 ss.cloud_shade_color=6 ss.cloud_far_color=6 -- 단색화 전에 원경 색상 보정
 	self:on("update",self.on_cover)
 end
 function cover:cover_cleared()
 	self:show(true)
-	self.timer=0
+	self.timer=-100 -- 처음에 딜레이를 좀 준다
 	self.is_stage_clear=true
 	self:on("update",self.on_cover)
 end
+
 function cover:_draw()
 	if self.use_dim then pal(dim_pal,1) else pal() end
 	draw_outcover(self.cover_w,self.cover_h,0,self.cx,self.cy,4)
@@ -1057,7 +1066,7 @@ function cover:_draw()
 		for i=1,#t do
 			printa("\^w\^t"..sub(t,i,_),rnd(2)+16+i*9+(i>4 and 5 or 0),50+rnd(4),0,0,true,12)
 		end
-		if(f%60<40) printa("press 🅾️❎ to coutinue",20,68,0,0,true,12)
+		if(f%60<40) printa("press 🅾️❎ to coutinue",19+rnd(2),67+rnd(2),0,0,true,12)
 		if btn(4) or btn(5) then
 			self.show_gameover=false
 			self:on("update",self.on_cover_to_title)
@@ -1072,7 +1081,7 @@ function cover:on_cover()
 	-- 그게 아니면 완전히 닫고 부활 or 다음 스테이지로...
 	local is_gameover=gg.planes<0
 	self.cover_w=max(0,500-self.timer*2.5)
-	self.cover_h=self.cover_w/2
+	self.cover_h=self.cover_w
 	self.cx=cx
 	self.cy=cy
 
@@ -1098,16 +1107,17 @@ function cover:on_cover()
 		_enemies:clear()
 		_space.particles={}
 		_space_f.particles={}
+		gg.control=false
+		gg.control_waiting=240
 
 		-- 스테이지 클리어라면? 다음 스테이지로 넘어갈 준비
 		if self.is_stage_clear then
 			gg.stage+=1
-			gg.control=false
-			gg.control_waiting=150
 			_ui:reset()
 			_enemies:reset()
 		end
 
+		ss_set((gg.stage-1)%#ss_data+1) -- 원경 색 스테이지에 맞게 셋팅(+죽었을 때 임시로 바꾼 팔래트 원복)
 		self:on("update",self.on_uncover)
 		self:remove_handler("update",self.on_cover)
 	end
@@ -1133,12 +1143,9 @@ function cover:on_uncover()
 	self.timer+=1
 	self.cover_w=self.timer*3-90
 	self.cover_h=self.cover_w
-	if self.cover_w>=160 then
-		-- 다음 스테이지 시작하는 상황(커버 다 사라짐)
-		if self.is_stage_clear then
-			self.is_stage_clear=false
-			add_stage_info_eff()
-		end
+	if self.cover_w>=160 then -- 커버 다 사라짐
+		self.is_stage_clear=false
+		if(gg.scene!="title") add_stage_info_eff()
 		self:show(false)
 		self:remove_handler("update",self.on_uncover)
 	end
@@ -1463,6 +1470,58 @@ dim_colors="0020028088222280"
 dim_pal={}
 for i=1,16 do dim_pal[i]=sub(dim_colors,i,_) end
 
+ss={}
+ss_set=function(n) for i,v in pairs(ss_data[n]) do ss[i]=v end end
+ss_data={ -- 스테이지 데이타
+	{
+		zako_type=1, -- 자코는 1~99
+		midboss_type=nil, -- 중간보스는 101~199
+		boss_type=201, -- 보스는 201~299
+		max_zako=6, -- 적 최대 동시 출현 수
+		zako_to_boss=20, -- 자코 몇 마리 잡아야 보스가 나올까?
+		year="1 9 1 0", -- 해당년도(1910->1940->1970->1982->2001(우주?)->다시 첨부터 반복)
+		sky_color=12, -- 원경 하늘 색
+		cloud_far_color=6, -- 원경 구름 색
+		cloud_color=7, -- 구름 밝은쪽 색
+		cloud_shade_color=6, -- 구름 그늘진 색
+	},
+	{
+		zako_type=2,
+		midboss_type=nil,
+		boss_type=201,
+		max_zako=7,
+		zako_to_boss=30,
+		year="1 9 2 0",
+		sky_color=13,cloud_far_color=5,cloud_color=6,cloud_shade_color=13,
+	},
+	{
+		zako_type=3,
+		midboss_type=nil,
+		boss_type=201,
+		max_zako=7,
+		zako_to_boss=35,
+		year="1 9 7 0",
+		sky_color=5,cloud_far_color=4,cloud_color=9,cloud_shade_color=4,
+	},
+	{
+		zako_type=3,
+		midboss_type=nil,
+		boss_type=201,
+		max_zako=8,
+		zako_to_boss=40,
+		year="1 9 8 2",
+		sky_color=4,cloud_far_color=5,cloud_color=9,cloud_shade_color=5,
+	},
+	{
+		zako_type=3,
+		midboss_type=nil,
+		boss_type=202,
+		max_zako=8,
+		zako_to_boss=50,
+		year="2 0 0 1",
+		sky_color=1,cloud_far_color=0,cloud_color=2,cloud_shade_color=0,
+	},
+}
 gg={} -- 게임 데이타
 gg_reset=function()
 	gg={
@@ -1471,31 +1530,13 @@ gg_reset=function()
 		control=false,
 		control_waiting=0,
 		stage=1,
-		planes=0,
+		planes=3,
 		score=0,
 		bonus_earned=0,
 		highscore=0,
 	}
+	ss_set(gg.stage)
 end
-ss={ -- 스테이지 데이타
-	zako_type=1, -- 자코는 1~99
-	boss_type=101, -- 보스는 101~199
-	max_zako=8,
-	zako_to_boss=5,
-	sky_color=12,
-	cloud_far_color=0, -- 원경 구름 색
-	cloud_color=0, -- 구름 밝은쪽 색
-	cloud_shade_color=0, -- 구름 그늘진 색
-	year="1 9 1 0", -- 해당년도(1910->1940->1970->1982->2001(우주?)->다시 첨부터 반복)
-	--[[ zako_type=1, -- 자코는 1~99
-	boss_type=101, -- 보스는 101~199
-	max_zako=8,
-	zako_to_boss=5,
-	sky_color=12,
-	cloud_far_color=0, -- 원경 구름 색
-	cloud_color=0, -- 구름 밝은쪽 색
-	cloud_shade_color=0, -- 구름 그늘진 색 ]]
-}
 
 function _init()
 	gg_reset()
@@ -1534,13 +1575,19 @@ end
 
 
 --[[ todo list
+- 보스 죽이는 순간에 총알 맞으면 상황 꼬인다!!!!!!! ************
+- 소리, BGM 제대로...(죽거나 클리어 등)
+- 적 여러가지 타입으로
+- 적 움직임, 총 쏘는 간격 등이 허술한 상태
 - 스코어 시스템 교체(아스테로이드에 쓴 변수 2개 쓰는 방식)
+- 자코들 출격할 때 편대비행?
+- X 버튼 기능 추가(뭐인지 원작 살펴봐야 함) -> 원작에 암것도 없는데?????
+- 녹화&재생 기능
+
+<처리한 것들>
+- 게임 플레이 루프(막판 깨면 1스테이부터 다시 시작 = 원작도 이럼)
+- 스테이지 진행
+- 상황에 맞게 자코, 보스 출격시키기
 - 죽으면 적들 다 제거 ********
 - 죽고 부활하는 시점에 적, 파티클 싹 날리자
-- 상황에 맞게 자코, 보스 출격시키기
-- 자코들 출격할 때 편대비행?
-- 스테이지 진행
-- X 버튼 기능 추가(뭐인지 원작 살펴봐야 함) -> 원작에 암것도 없는데?????
-- 게임 플레이 루프 -> 다 죽으면 타이틀로 돌아가는 것까지는 했다!
-- 녹화&재생 기능
 ]]
