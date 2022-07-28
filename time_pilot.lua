@@ -1,5 +1,5 @@
 dev=0
-ver="0.51 - under development" -- 2022/07/26
+ver="0.6 - under development" -- 2022/07/28
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -26,7 +26,7 @@ cover_pattern=split(cover_pattern_str,",")
 
 
 -- <record & playback> --------------------
-_b0=btn
+--[[ _b0=btn
 function record() _bm=1 _bp=1 _bt=0 _bd="" end
 function playback() _bm=2 _bp=1 _bt=0 end
 function btn(p)
@@ -60,7 +60,7 @@ function btn(p)
   else
     return _b0(p)
   end
-end
+end ]]
 
 
 
@@ -203,6 +203,7 @@ end
 
 -- <space> --------------------
 space=class(sprite)
+function space:on_update() end
 function space:init(is_front)
 	self.spd_x=0
 	self.spd_y=0
@@ -212,7 +213,7 @@ function space:init(is_front)
 	self.particles={}
 	self.is_front=is_front
 
-	local function make_star(i,spd,spd_max,size)
+	local function make_cloud(i,spd,spd_max,size)
 		return {
 			x=rnd(127),
 			y=rnd(127),
@@ -220,23 +221,24 @@ function space:init(is_front)
 			size=size
 		}
 	end
+	local ss=self.stars
 	if is_front then
-		for i=1,2 do add(self.stars,make_star(i,2,2.8,4)) end
-		for i=1,2 do add(self.stars,make_star(i,3,4,4)) end
+		for i=1,2 do add(ss,make_cloud(i,2,2.8,4)) end
+		for i=1,2 do add(ss,make_cloud(i,3,4,4)) end
 	else
-		for i=1,4 do add(self.stars,make_star(i,0.1,0.3,0)) end
-		for i=1,6 do add(self.stars,make_star(i,0.3,0.5,1)) end
-		for i=1,4 do add(self.stars,make_star(i,0.6,0.9,2)) end
-		for i=1,4 do add(self.stars,make_star(i,0.9,1,3)) end
+		for i=1,4 do add(ss,make_cloud(i,0.1,0.3,0)) end
+		for i=1,6 do add(ss,make_cloud(i,0.3,0.5,1)) end
+		for i=1,4 do add(ss,make_cloud(i,0.6,0.9,2)) end
+		for i=1,4 do add(ss,make_cloud(i,0.9,1,3)) end
 	end
 
 	self:show(true)
 	self:on("update",self.on_update)
 end
 
-ptcl_size_enemy="010111010100"
-ptcl_size_thrust="001011212222121211111110101000000"
-ptcl_thrust_col="777aa99ee8844d4dd6d666"
+-- ptcl_size_enemy="010111010100"
+-- ptcl_size_thrust="001011212222121211111110101000000"
+-- ptcl_thrust_col="777aa99ee8844d4dd6d666"
 ptcl_fire_col="89a7"
 ptcl_size_explosion="3577767766666555544444333332222221111111000"
 ptcl_col_explosion="77aaa99a99888988999494445555666"
@@ -244,26 +246,6 @@ ptcl_col_explosion_dust="779856"
 ptcl_col_hit="cc7a82"
 
 function space:_draw()
-	-- vignetting
-	--[[ if not self.is_front then
-		cls(13)
-		for i=1,5 do
-			fillp(cover_pattern[i*2])
-			circfill(cx,cy,130-i*(7+i*2),12)
-		end
-		fillp()
-	end ]]
-	
-	-- 더 넓은 비네팅
-	--[[ if not self.is_front then
-		cls(13)
-		for i=1,5 do
-			fillp(cover_pattern[i*2])
-			circfill(cx,cy,124-i*(0+i*2),12)
-		end
-		fillp()
-	end ]]
-
 	-- 하단 그라데이션
 	--[[ if not self.is_front then
 		for i=0,8 do
@@ -275,7 +257,7 @@ function space:_draw()
 	end ]]
 
 	-- 구름
-	pal({[7]=ss.cloud_color,[6]=ss.cloud_far_color}) -- 구름 색을 스테이지 정보에 맞춤
+	pal({[7]=ss.cloud_color,[10]=ss.cloud_color,[6]=ss.cloud_far_color,[9]=ss.cloud_far_color}) -- 구름 색을 스테이지 정보에 맞춤
 	for i,v in pairs(self.stars) do
 		local x=v.x-self.spd_x*v.spd
 		local y=v.y+self.spd_y*v.spd
@@ -287,21 +269,24 @@ function space:_draw()
 		y2=y2>147 and y2-167 or y2<-20 and y2+167 or y2
 		if v.size==4 then
 			if self.is_front then
-				-- local near=abs(cx-x2)<20 and abs(cy-y2)<12 -- 비행기 근처 구름은 반투명 처리(망점이 안되서 점멸 사용)
-				-- local s= near and f%2<1 or not near
-				-- if s then
-					if i%2==0 then
-						spr(67,x2-17,y2-2)
-						spr(64,x2-12,y2-4)
-						sspr(0,48,16,16,x2-8,y2-8,16,16)
-						spr(64,x2+5,y2-3)
-					else
-						spr(64,x2-10,y2)
-						spr(66,x2-6,y2-4)
-						sspr(0,48,16,16,x2-3,y2-6,16,16)
-						spr(64,x2+9,y2-1)
-					end
-				-- end
+				-- 비행기 가리는 구름은 망점 처리
+				x2=flr(x2) y2=flr(y2)
+				if abs(cx-x2)<24 and abs(cy-y2)<16 then
+					if (x2-y2)%2<1 then palt(9,true) palt(10,true)
+					else palt(6,true) palt(7,true) end
+				end
+				if i%2==0 then
+					spr(67,x2-16,y2-2)
+					spr(64,x2-12,y2-4)
+					sspr(0,48,16,16,x2-8,y2-8,16,16)
+					spr(64,x2+6,y2-2)
+				else
+					spr(66,x2-12,y2-2)
+					spr(64,x2-8,y2-4)
+					sspr(0,48,16,16,x2-4,y2-8,16,16)
+					spr(64,x2+8,y2-2)
+				end
+				palt()
 			end
 		elseif v.size==3 then
 			if i%2==0 then
@@ -329,16 +314,14 @@ function space:_draw()
 	end
 	pal()
 
-	-- particles
+	-- 온갖 이펙트 파티클들
 	for v in all(self.particles) do
 		if v.type=="thrust" then
-			fillp(cover_pattern[10-clamp(flr(v.age*0.3),0,9)])
-			-- circfill(v.x,v.y,1,7)
+			fillp(cover_pattern[10-clamp(round((v.age/v.age_max)^2*9),0,9)])
 			circfill(v.x,v.y,1,ss.cloud_color)
 			fillp()
 			v.x+=v.sx-self.spd_x+rnd(0.6)-0.3
 			v.y+=v.sy+self.spd_y+rnd(0.6)-0.3
-			if(v.age>v.age_max) del(self.particles,v)
 
 		elseif v.type=="smoke" then
 			fillp(cover_pattern[10-clamp(flr(v.age*0.1),0,9)])
@@ -346,14 +329,11 @@ function space:_draw()
 			fillp()
 			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(2)-1
 			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(2)-1
-			if(v.age>80) del(self.particles,v)
 		
 		elseif v.type=="enemy_trail" then
-			-- pset(v.x,v.y,7)
 			pset(v.x,v.y,ss.cloud_color)
-			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(0.6)-0.3
-			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(0.6)-0.3
-			if(v.age>v.age_max) del(self.particles,v)
+			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(0.4)-0.2
+			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(0.4)-0.2
 
 		elseif v.type=="bullet" or v.type=="bullet_enemy" then
 			local ox,oy=v.x,v.y
@@ -361,7 +341,8 @@ function space:_draw()
 			v.y+=v.sy+self.spd_y+self.spd_cy
 			local c=tonum(sub(ptcl_fire_col,1+round(v.age/16),_),0x1)
 			
-			if(v.age>v.age_max or v.x>131 or v.y>131 or v.x<-4 or v.y<-4) del(self.particles,v)
+			-- if(v.age>v.age_max or v.x>131 or v.y>131 or v.x<-4 or v.y<-4) del(self.particles,v)
+			if(not is_inside(v.x,v.y,4)) del(self.particles,v) -- 화면 밖으로 나간 총알은 제거
 
 			-- 총알 그리기 & 총알과 적 충돌처리(조종 가능할 때만)
 			if v.type=="bullet" and gg.control then
@@ -369,23 +350,23 @@ function space:_draw()
 				local dist=6
 				for e in all(_enemies.list) do
 					if(e.type==999) goto continue -- 낙하산은 아래 처리 건너뜀
-					-- if(e.type>100 and e.type<300) dist=8 -- 중간보스 이상은 충돌 영역 크게
-					-- if abs(v.x-e.x)<=dist and abs(v.y-e.y)<=dist and get_dist(v.x,v.y,e.x,e.y)<=dist then -- 구형 거리 측정
 					if abs(v.x-e.x)<=e.w/2 and abs(v.y-e.y)<=e.h/2 then -- 개별 적의 w,h 거리만 비교
-
 						e.hp-=1
 						if e.hp<=0 then
-							if e.type<100 then -- 자코
+							if e.type==801 then -- 미사일
+								add_score(300)
+								_enemies.msl_counter-=1
+							elseif e.type<100 then -- 자코
 								_ui.kill_zako+=1
 								add_score(100)
 							elseif e.type<200 then -- 중간보스
 								add_score(1500)
-								add(_space.particles,{type="score",value=1500,x=e.x,y=e.y,age=1})
+								add_score_eff(e.x,e.y,1500)
 								_enemies:mid_kill()
 							elseif e.type<300 then -- 보스
 								_ui.kill_boss+=1
 								add_score(5000)
-								add(_space.particles,{type="score",value=5000,x=e.x,y=e.y,age=1})
+								add_score_eff(e.x,e.y,5000)
 								_enemies:boss_kill()
 							end
 							add_explosion_eff(e.x,e.y,v.sx,v.sy)
@@ -403,14 +384,9 @@ function space:_draw()
 				end
 
 			elseif v.type=="bullet_enemy" then
-				circfill(v.x,v.y,1,9+rndi(3))
+				circ(v.x,v.y,1,9+rndi(3))
 				circfill(v.x,v.y,0,8)
-				local dist=5
-				if
-					gg.control and
-					not _ship.is_killed and
-					abs(v.x-cx)<=dist and abs(v.y-cy)<=dist and
-					get_dist(v.x,v.y,cx,cy)<=dist then
+				if gg.control and not _ship.is_killed and abs(v.x-cx)<=3 and abs(v.y-cy)<=3 then
 						_ship:kill()
 				end
 			end
@@ -424,7 +400,6 @@ function space:_draw()
 			v.sx*=0.92
 			v.sy*=0.92
 			v.sy+=0.01
-			if(v.age>40) del(self.particles,v)
 
 		elseif v.type=="explosion_dust" then
 			local c=tonum(sub(ptcl_col_explosion_dust,1+flr(v.age/5),_),0x1)
@@ -434,7 +409,6 @@ function space:_draw()
 			v.sx*=0.96
 			v.sy*=0.96
 			v.sy+=0.02
-			if(v.age>30) del(self.particles,v)
 
 		elseif v.type=="hit" then
 			local c=tonum(sub(ptcl_col_hit,1+flr(v.age/3),_),0x1)
@@ -443,28 +417,24 @@ function space:_draw()
 			v.y+=v.sy+self.spd_y
 			v.sx*=0.94
 			v.sy*=0.94
-			if(v.age>12) del(self.particles,v)
 		
 		elseif v.type=="circle" then
 			v.size+=0.6
 			circ(cx,cy,v.size,8+rndi(7))
-			if(v.age>32) del(self.particles,v)
 
 		elseif v.type=="score" then
 			printa(v.value,v.x,v.y,7,0.5,true)
 			v.x-=self.spd_x*1.5
 			v.y+=self.spd_y*1.2
-			if(v.age>45) del(self.particles,v)
 
 		elseif v.type=="bonus" then
 			local s=v.is_first and "1st bonus!" or "bonus!"
 			printa(s,68,118-cos((60-v.age)/120)*5,8+flr(f/5%5),0.5,true)
-			if(v.age>120) del(self.particles,v)
 
 		elseif v.type=="stage_info" then
-			printa(v.t1,63,63-18,7,0.5,true)
-			printa(v.t2,63,63+14,8+flr(f/5%5),0.5,true)
-			if(v.age>180) del(self.particles,v)
+			printa(v.t1,63,45,7,0.5,true)
+			printa(v.t2,63,77,8+flr(f/5%5),0.5,true)
+			-- printa(gg.phase,63,90,7,0.5,true)
 
 		elseif v.type=="time_jump" then
 			local delay=60 -- 초반 딜레이만큼 기다림
@@ -482,14 +452,13 @@ function space:_draw()
 					line(cx-x,cy-y,cx+x,cy+y,7)
 				end
 			end
-			if(v.age>240+delay) del(self.particles,v)
 		end
+
+		if(v.age>v.age_max) del(self.particles,v)
 		v.age+=1
 	end
 end
 
-function space:on_update()
-end
 
 
 
@@ -513,9 +482,6 @@ function ship:init()
 	self.fire_spd=2.2
 	self.fire_intv=0
 	self.fire_intv_full=6
-	-- self.bomb_spd=0.7
-	-- self.bomb_intv=0
-	-- self.bomb_intv_full=60
 	self.hit_count=0
 	self.is_killed=false
 	self.killed_angle=0.65
@@ -526,12 +492,12 @@ function ship:init()
 	self:on("update",self.on_update)
 end
 
-guide_pattern_str=[[
-0b1111011111111101.1,
-0b0111110111111111.1,
-0b1101111101111111.1,
-]]
-guide_pattern=split(guide_pattern_str,",")
+-- guide_pattern_str=[[
+-- 0b1111011111111101.1,
+-- 0b0111110111111111.1,
+-- 0b1101111101111111.1,
+-- ]]
+-- guide_pattern=split(guide_pattern_str,",")
 
 function ship:_draw()
 	local x0=cos(self.angle)
@@ -550,9 +516,7 @@ function ship:_draw()
 		self.hit_count-=1
 	end
 	local s=get_spr2(self.angle)
-	-- sspr(s.x,s.y,13,15,cx-6,cy-6,13,15,s.fx,s.fy)
 	sspr(s.x,s.y,13,15,cx-4,cy-4,13*0.7,15*0.7,s.fx,s.fy) -- 스케일 줄여 봄
-	-- circ(cx,cy,6,11)
 	pal()
 
 	self.tail.x=cx-x0*4
@@ -623,9 +587,7 @@ function ship:on_update()
 
 	-- fire
 	self.fire_intv-=1
-	-- if btn(4) and self.fire_intv<=0 then
 	if btn(4) and self.fire_intv<=0 and gg.control then
-		-- sfx(24,-1)
 		sfx(1,-1)
 		self.fire_intv=self.fire_intv_full
 		local a=self.angle+rnd()*0.016-0.008
@@ -643,81 +605,33 @@ function ship:on_update()
 		})
 	end
 
-	-- 임시로 타임점프 이펙트 붙이기
-	-- if btn(5) and self.fire_intv<=0 then
+	-- 보스 잡은 것처럼 해보자
 	if dev==1 and btn(5) and _enemies.boss_killed==false then
-		-- self.fire_intv=self.fire_intv_full
 		_enemies:boss_kill()
-		--[[ self.fire_intv=self.fire_intv_full
-		add(_space.particles,{type="time_jump",age=0})
-		self.time_jump_mode=true
-		_cover:cover_cleared() ]]
 	end
-
-	-- bomb
-	-- todo: 폭탄 인터벌이든 뭐든 처리해야 함
-	--[[ 
-	self.bomb_intv-=1
-	if btn(5) and self.bomb_intv<=0 then
-		sfx(6,-1)
-		self.bomb_intv=self.bomb_intv_full
-		local fire_spd_x=cos(self.angle)*self.bomb_spd+self.spd_x
-		local fire_spd_y=sin(self.angle)*self.bomb_spd+self.spd_y
-		add(_space.particles,
-		{
-			type="bomb",
-			x=self.head.x,
-			y=self.head.y,
-			sx=fire_spd_x,
-			sy=fire_spd_y,
-			spr=16+round(self.angle*8-0.0625)%8,
-			age_max=120,
-			age=1
-		})
-	end ]]
 
 	::continue::
 
 	-- 분사효과 or 검은연기
 	if self.is_killed then
 		add_smoke_eff(self.tail.x+rnd(0.6)-0.3,self.tail.y+rnd(0.6)-0.3,-self.spd_x*1.5,-self.spd_y*1.5)
-	-- else
 	elseif not _cover.is_stage_clear then
-		add(_space.particles,
-			{
-				type="thrust",
-				x=self.tail.x,
-				y=self.tail.y,
-				sx=-self.spd_x*1.3,
-				sy=-self.spd_y*1.3,
-				age_max=50,
-				age=1
-			})
+		add_thrust_eff(self.tail.x,self.tail.y,-self.spd_x*1.3,-self.spd_y*1.3,40)
 	end
-
-	-- speed limit
-	--[[ local spd=sqrt(self.spd_x^2+self.spd_y^2)
-	if spd>self.spd_max then
-		local r=self.spd_max/spd
-		self.spd_x*=r
-		self.spd_y*=r
-	end ]]
 
 	-- 나와 적의 충돌 체크
 	if not self.is_killed then
 		for e in all(_enemies.list) do
-			-- local dist=(e.type==999) and 10 or (e.type>100) and 8 or 6
-			-- if abs(e.x-cx)<=dist and abs(e.y-cy)<=dist and get_dist(e.x,e.y,cx,cy)<=dist then -- 구형 거리체크
-			if abs(e.x-cx)<=e.w/2+1 and abs(e.y-cy)<=e.h/2+1 then -- 적의 w,h만으로 거리 계산 & 내 크기도 고려해서 +1
+			if abs(e.x-cx)<=e.w/2 and abs(e.y-cy)<=e.h/2 then -- 적의 w,h만으로 거리 계산(내 크기 고려 안 함)
 				if e.type==999 then -- 낙하산 먹기
 					_enemies:para_kill()
 					_ui.kill_para+=1
 					sfx(32,-1)
-					add(_space.particles,{type="circle",size=3,age=1})
+					add(_space.particles,{type="circle",size=3,age=1,age_max=32})
 					add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
-					add(_space.particles,{type="score",value=5000,x=e.x,y=e.y,age=1})
-					del(_enemies.list,e)
 					add_score(5000)
+					add_score_eff(e.x,e.y,5000)
+					del(_enemies.list,e)
 				else
 					self:kill()
 				end
@@ -733,8 +647,6 @@ function ship:on_update()
 	
 	-- Space의 중심을 살짝 옮겨서 전방 시야 확보(비행기 방향만 고려)
 	-- 단, gg.control_waiting이 있을 때는 정중앙에 표시하다가 서서히 옮겨 감
-	-- local dst=gg.scene=="title" and 0 or max(0,40-gg.control_waiting)/40*14
-	-- if self.is_killed then dst=-40 end
 	local dst=
 		gg.scene=="title" and 0 or
 		self.is_killed and max(-50,-self.timer_killed/2) or
@@ -789,6 +701,7 @@ function enemies:reset()
 	self.boss_appear=false
 	self.para_appear=false
 	self.para_chker=0
+	self.msl_counter=0
 	self.boss_killed=false
 end
 function enemies:clear() -- 조용히 제거만 하는 것(죽고 다시 시작할 때)
@@ -798,6 +711,7 @@ function enemies:clear() -- 조용히 제거만 하는 것(죽고 다시 시작�
 	self.boss_appear=false
 	self.para_appear=false
 	self.para_chker=0
+	self.msl_counter=0
 end
 function enemies:mid_kill()
 	self.mid_appear=false
@@ -810,7 +724,7 @@ function enemies:boss_kill() -- 보스 킬(적, 총알 싹 제거 + 스테이지
 	self.list={}
 
 	gg.control=false
-	add(_space.particles,{type="time_jump",age=0})
+	add(_space.particles,{type="time_jump",age=0,age_max=300})
 	_ship.time_jump_mode=true
 	_cover:cover_cleared()
 end
@@ -835,14 +749,14 @@ function enemies:group_update() -- 적들의 수를 일정하게 관리
 		self:add(x,-50+rnd(100),ss.zako_type,angle)
 	end
 
-	-- 중간보스 출격!
-	if not self.mid_appear and ss.mid_type then
+	-- 중간보스 출격! (보스 나오기 전까지만)
+	if not self.mid_appear and ss.mid_type>0 and _ui.kill_zako<=ss.zako_to_boss then
 		self:add(-85,-50+rnd(100),ss.mid_type,0)
 		self.mid_appear=true
 	end
 	
-	-- 보스 출격!
-	if not self.boss_appear and _ui.kill_zako>=ss.zako_to_boss then
+	-- 보스 출격! (중간보스 없어야 함)
+	if not self.boss_appear and _ui.kill_zako>=ss.zako_to_boss and not self.mid_appear then
 		self:add(-85,-50+rnd(100),ss.boss_type,0)
 		self.boss_appear=true
 	end
@@ -867,7 +781,18 @@ function enemies:_draw()
 		e.x=e.space_x+cx
 		e.y=e.space_y+cy
 		
-		if e.type<100 then -- 자코들은 정기적으로 비행 방향 업데이트 + 공격
+		if e.type==801 then -- 유도미사일: 항상 나를 향함
+			if (f+i*5)%20==0 then
+				local to_angle=atan2(cx-e.x,cy-e.y)
+				local angle_dist=value_loop_0to1(e.angle-to_angle)
+				if angle_dist>0.1 then
+					e.angle_acc=0.003*get_rotate_dir(e.angle,to_angle)
+				else
+					e.angle_acc=0
+				end
+			end
+
+		elseif e.type<100 then -- 자코: 정기적으로 비행 방향 업데이트 + 공격
 			if (f+i*10)%90==0 then
 				local to_angle=atan2(cx-e.x,cy-e.y)
 				local angle_dist=value_loop_0to1(e.angle-to_angle)
@@ -881,37 +806,23 @@ function enemies:_draw()
 				-- todo: 너무 가까울 때는 안쏴야 할 듯한.....????
 				if angle_dist<0.2 then
 					if e.x>0 and e.y>0 and e.x<127 and e.y<127 then
+						add_enemy_bullet(e.x+e.spd_x*16,e.y+e.spd_y*16,cos(e.angle)*0.7,sin(e.angle)*0.7,150)
 						sfx(25,-1)
-						add(_space.particles,
-						{
-							type="bullet_enemy",
-							x=e.x+e.spd_x*16,
-							y=e.y+e.spd_y*16,
-							sx=cos(e.angle)*0.7,
-							sy=sin(e.angle)*0.7,
-							age_max=240,
-							age=1
-						})
 					end
-					-- line(e.x,e.y,cx,cy,11)
+					-- line(e.x,e.y,cx,cy,11) -- 나를 향해 선을 그려보자
 				end
 			end
+
 		elseif e.type>100 and e.type<300 then -- 중간보스,보스는 전방위로 공격
-			-- 전방위 공격
-			if e.x>0 and e.y>0 and e.x<127 and e.y<127 and f%60==0 then
-				local to_angle=atan2(cx-e.x,cy-e.y)+rnd(0.08)-0.04
-				local sx,sy=cos(to_angle)*0.4,sin(to_angle)*0.4
-				sfx(25,-1)
-				add(_space.particles,
-				{
-					type="bullet_enemy",
-					x=e.x+sx*12,
-					y=e.y+sy*12,
-					sx=sx,
-					sy=sy,
-					age_max=150,
-					age=1
-				})
+			if is_inside(e.x,e.y,0) and f%60==0 then
+				if e.type==203 then -- 미사일 공격 타입
+					if(self.msl_counter<ss.max_msl) self:add(e.x-cx,e.y-cy+6,801,0) sfx(25,-1)
+				else
+					local to_angle=atan2(cx-e.x,cy-e.y)+rnd(0.08)-0.04
+					local sx,sy=cos(to_angle)*0.4,sin(to_angle)*0.4
+					add_enemy_bullet(e.x+sx*12,e.y+sy*12,sx,sy,150)
+					sfx(25,-1)
+				end
 			end
 		end
 
@@ -926,25 +837,18 @@ function enemies:_draw()
 		end
 
 		-- 타입에 맞는 트레일 추가(낙하산 제외)
-		if f%3==0 and e.type!=999 then
+		if e.type==801 then -- 유도미사일
+			if(f%2==0) add_trail_eff(e.x,e.y,-e.spd_x*1.3,-e.spd_y*1.3,60)
+		elseif f%3==0 and e.type!=999 then
 			local x,y=e.x-e.spd_x*12,e.y-e.spd_y*12
 			local sx,sy=-e.spd_x*1.8,-e.spd_y*1.8
-			if e.type>100 then -- 중간보스, 보스(오른쪽으로만 비행)
+			if e.type>100 and e.type<300 then -- 중간보스, 보스(오른쪽으로만 비행)
 				x=e.x-9
 				y=e.y+rnd()
 				sx=-0.9
 				sy=0
 			end
-			add(_space.particles,
-			{
-				type="enemy_trail",
-				x=x,
-				y=y,
-				sx=sx,
-				sy=sy,
-				age_max=14,
-				age=1
-			})
+			add_trail_eff(x,y,sx,sy,14)
 		end
 
 		-- 화면 밖으로 멀어지면 가까운 곳으로 옮김(플레이어 방향 고려)
@@ -958,9 +862,12 @@ function enemies:_draw()
 			e.y=y+cy
 		end ]]
 		-- 화면 밖으로 많이 멀어지면 제거(자동으로 리필되니까)
-		local mg=100
-		if e.x<-4-mg or e.y<-4-mg or e.x>131+mg or e.y>131+mg then
+		-- local mg=120
+		-- if e.x<-4-mg or e.y<-4-mg or e.x>131+mg or e.y>131+mg then
+		if not is_inside(e.x,e.y,120) then
 			if(e.type>100 and e.type<200) self.mid_appear=false
+			if(e.type>200 and e.type<300) self.boss_appear=false
+			if(e.type==801) self.msl_counter-=1
 			del(self.list,e)
 		end
 		
@@ -968,16 +875,7 @@ function enemies:_draw()
 		-- if(e.type==2) pal{[11]=8} -- 빨간 자코
 		-- if(e.type>200 and e.type<300) pal{[11]=10} -- 보스(노란색)
 
-		--[[ if e.x<-4 then -- 화면 밖에 있을 때는 테두리 인디케이터만 표시
-			spr(80,0,clamp(e.y-4,4,118-7))
-		elseif e.x>131 then
-			spr(80,120,clamp(e.y-4,4,118-7),1,1,true)
-		elseif e.y<-4 then
-			spr(81,clamp(e.x-4,4,118),0)
-		elseif e.y>131-7 then
-			spr(81,clamp(e.x-4,4,118),120-7,1,1,false,true) ]]
-		mg=10
-		if e.x<-mg or e.x>127+mg or e.y<-mg or e.y>127+mg then -- 화면 밖에 있을 때는 테두리 인디케이터만 표시
+		if not is_inside(e.x,e.y,20) then -- 화면 밖에 있을 때는 인디케이터만 표시
 			if e.type>100 then -- 자코 제외
 				if e.x<-4 then
 					spr(80,0,clamp(e.y-4,4,118-7))
@@ -997,7 +895,10 @@ function enemies:_draw()
 			else
 				if(e.type==2) pal({[3]=8,[15]=9,[5]=4}) -- 자코 빨간 비행기 색상
 				if(e.type==3) pal({[3]=12,[15]=6,[5]=13}) -- 자코 파란 비행기 색상
-				if(e.type==202) pal({[15]=13,[14]=5,[2]=4,[12]=1}) -- 임시 피통 큰 보스
+				if(e.type==4) pal({[3]=9,[15]=6,[5]=13}) -- 자코 주황 비행기 색상
+				if(e.type==102) pal({[15]=13,[14]=5,[2]=4,[12]=1}) -- 회색 열기구
+				if(e.type==202) pal({[3]=9,[5]=4,[11]=10}) -- 주황 폭격기
+				if(e.type==203) pal({[3]=8,[5]=2,[11]=14}) -- 빨간 폭격기
 				if f%6<3 then palt(12,true) pal{[10]=7} else palt(10,true) pal{[12]=7} end -- 프로펠러 회전(팔레트로 처리)
 			end
 
@@ -1016,11 +917,17 @@ function enemies:_draw()
 				end
 
 			elseif e.type>100 and e.type<300 then -- 중간보스, 보스(회전 없이 고정 스프라이트 출력)
-				if(e.type==201 or e.type==202) spr(32,e.x-7,e.y-7,2,2) -- 기구 타입
-				if(e.type==101) spr(34,e.x-7-4,e.y-7,3,2) -- 폭격기 타입
+				if(e.type==102 or e.type==201) spr(32,e.x-7,e.y-7,2,2) -- 기구 타입
+				if(e.type==101 or e.type==202 or e.type==203) spr(34,e.x-7-4,e.y-7,3,2) -- 폭격기 타입
 				if e.hp<e.hp_max and f%(4+flr(e.hp/e.hp_max*16))==0 then -- hp가 낮으면 연기 추가(4~20프레임에 한 번씩)
 					add_smoke_eff(e.x-e.spd_x*25,e.y-2,-e.spd_x*(1.2+rnd(0.8)),-0.2-rnd(0.4))
 				end
+
+			elseif e.type==801 then -- 유도미사일
+				local s=get_spr(e.angle)
+				if(f%8<4) pal{[8]=11,[2]=3,[15]=7}
+				sspr(40+(s.spr/2)*8,16,8,8,e.x-3,e.y-3,8,8,s.fx,s.fy)
+				pal()
 
 			else -- 자코(방향에 맞는 스프라이트 골라서 출력)
 				local s=get_spr(e.angle)
@@ -1035,14 +942,25 @@ function enemies:_draw()
 end
 
 function enemies:add(x,y,t,ang)
-	local hp,hp_max,spd,w,h=1,1,0,8,8
+	local hp,spd,w,h=1,1,8,8
+	local app,atk,fly,trail=1,1,1,1
 	if(t==1) spd=0.3 -- 자코(초록 비행기)
 	if(t==2) spd=0.4 -- 자코(빨간 비행기)
 	if(t==3) spd=0.5 -- 자코(파란 비행기)
-	if(t==101) hp,hp_max,spd,w,h=10,10,0.2,24,12 -- 중간보스(초록 폭격기)
-	if(t==201) hp,hp_max,spd,w,h=12,12,0.2,16,14 -- 스테이지1 보스(열기구)
-	if(t==202) hp,hp_max,spd,w,h=100,100,0.2,16,14 -- 스테이지5 보스(회색 열기구, 임시로 피통 크게)
+	if(t==4) hp,spd=2,0.55 -- 자코(주황 비행기)
+
+	if(t==101) hp,spd,w,h=10,0.3,24,10 -- 중간보스(초록 폭격기) / stage 2
+	if(t==102) hp,spd,w,h=15,0.2,16,14 -- 중간보스(회색 열기구) / stage 3
+
+	if(t==201) hp,spd,w,h=15,0.2,16,14 -- 보스(열기구) / stage 1
+	if(t==202) hp,spd,w,h=30,0.3,24,10 -- 임시보스(주황 폭격기) / stage 2
+	if(t==203) hp,spd,w,h=50,0.3,24,10 -- 임시보스(빨간 폭격기) / stage 3
+
+	if(t==801) w,h,spd=6,6,0.6 self.msl_counter+=1 -- 유도미사일
 	if(t==999) w,h=14,14 -- 낙하산 충돌영역 넉넉하게
+
+	hp=(t<100 or t==801) and hp or hp*gg.phase -- 페이즈 진행할수록 적 피통 커짐(자코, 미사일 제외)
+
 	local e={
 		x=0,
 		y=0,
@@ -1057,10 +975,14 @@ function enemies:add(x,y,t,ang)
 		angle_acc=0,
 		space_x=x,
 		space_y=y,
-		hp=hp,
-		hp_max=hp_max,
+		hp=hp, 
+		hp_max=hp,
 		hit_count=0,
 		type=t,
+		-- app_type=1, -- 외형 타입: 1 프로펠러기, 2 미래전투기(플레이어), 3 헬기, 4 비행선, 5 폭격기, 6 UFO ...
+		-- atk_type=atk, -- 공격 타입: 1 내 전방, 2 무조건 플레이어 방향, 3 유도미사일
+		-- fly_type=1, -- 비행 타입: 1 프로펠러기, 2 수평등속비행(열기구, 폭격기), 3 헬리콥터, 4 유도미사일
+		-- trail_type=1, -- 비행운 타입: 1 일반 쩜쩜, 2 유도미사일 분사
 	}
 	add(self.list,e)
 end
@@ -1103,14 +1025,16 @@ function cover:_draw()
 		self.cy=62+rnd(4)
 		local t="gameover"
 		for i=1,#t do
-			printa("\^w\^t"..sub(t,i,_),rnd(2)+16+i*9+(i>4 and 5 or 0),50+rnd(4),0,0,true,12)
+			printa("\^w\^t"..sub(t,i,_),rnd(2)+16+i*9+(i>4 and 5 or 0),45+rnd(4),0,0,true,12)
 		end
-		if(f%60<40) printa("press 🅾️❎ to coutinue",19+rnd(2),67+rnd(2),0,0,true,12)
+		printa("\^istage "..gg.stage..", score ".._ui.score_str,67+rnd(1.6),63+rnd(1.6),0,0.5,true,12)
+		if(f%60<40) printa("press 🅾️❎ to coutinue",19+rnd(2),73+rnd(2),0,0,true,12)
 		self.timer+=1
 		if (btn(4) or btn(5)) and self.timer>120 then
 			self.timer=0
 			self.show_gameover=false
 			self:on("update",self.on_cover_to_title)
+			sfx(6,-1)
 		end
 	end
 end
@@ -1154,11 +1078,12 @@ function cover:on_cover()
 		-- 스테이지 클리어라면? 다음 스테이지로 넘어갈 준비
 		if self.is_stage_clear then
 			gg.stage+=1
+			gg.phase=(gg.stage-1)\#ss_data+1
 			_ui:reset()
 			_enemies:reset()
 		end
 
-		ss_set((gg.stage-1)%#ss_data+1) -- 원경 색 스테이지에 맞게 셋팅(+죽었을 때 임시로 바꾼 팔래트 원복)
+		ss_set(gg.stage) -- 원경 색 스테이지에 맞게 셋팅(+죽었을 때 임시로 바꾼 팔래트 원복)
 		self:on("update",self.on_uncover)
 		self:remove_handler("update",self.on_cover)
 	end
@@ -1204,7 +1129,7 @@ function ui:reset()
 	self.kill_zako=0
 	self.kill_boss=0
 	self.kill_para=0
-	self.kill_2=0
+	self.score_str="0"
 end
 function ui:_draw()
 	rectfill(-3,121,130,130,0)
@@ -1222,7 +1147,7 @@ function ui:_draw()
 
 	spr(207,61,122)
 	?gg.planes,70,122,8
-	print_score(gg.score,8,82,122)
+	self.score_str=print_score(gg.score,8,82,122)
 	?"pts",116,122,5
 end
 
@@ -1260,6 +1185,7 @@ function title:draw_title()
 		if (btn(4) or btn(5)) and f>60 then
 			self.to_sky=true
 			self.tran_timer=self.tran_timer_max
+			sfx(6,-1)
 		end
 	end
 
@@ -1305,59 +1231,55 @@ function get_rotate_dir(from,to)
 	return da1>da2 and 1 or -1
 end
 
--- enemy airplane sprites
-function get_spr(angle)
-	local s,fx,fy=0,false,false
-	angle=value_loop_0to1(angle)+0.0312
-	if angle<0.0625 then s=8 -- right
-	elseif angle<0.125 then s=6
-	elseif angle<0.1875 then s=4
-	elseif angle<0.25 then s=2
-	elseif angle<0.3125 then s=0 -- top
-	elseif angle<0.375 then s=2 fx=true
-	elseif angle<0.4375 then s=4 fx=true
-	elseif angle<0.5 then s=6 fx=true
-	elseif angle<0.5625 then s=8 fx=true -- left
-	elseif angle<0.625 then s=10 fx=true
-	elseif angle<0.6875 then s=12 fx=true
-	elseif angle<0.75 then s=14 fx=true
-	elseif angle<0.8125 then s=0 fx=true fy=true -- bottom
-	elseif angle<0.875 then s=14
-	elseif angle<0.9375 then s=12
+function get_spr(angle) -- 자코 기체
+	local s,fx,fy,a=0,false,false,value_loop_0to1(angle+0.0312)
+	if a<0.0625 then s=8 -- right
+	elseif a<0.125 then s=6
+	elseif a<0.1875 then s=4
+	elseif a<0.25 then s=2
+	elseif a<0.3125 then s=0 -- top
+	elseif a<0.375 then s=2 fx=true
+	elseif a<0.4375 then s=4 fx=true
+	elseif a<0.5 then s=6 fx=true
+	elseif a<0.5625 then s=8 fx=true -- left
+	elseif a<0.625 then s=10 fx=true
+	elseif a<0.6875 then s=12 fx=true
+	elseif a<0.75 then s=14 fx=true
+	elseif a<0.8125 then s=0 fx=true fy=true -- bottom
+	elseif a<0.875 then s=14
+	elseif a<0.9375 then s=12
 	else s=10 end
 	return {spr=s,fx=fx,fy=fy}
 end
 
-function get_spr2(angle)
+function get_spr2(angle) -- 플레이어 기체
 	-- 13x15 size
-	local x,y,fx,fy=0,97,false,false
-	angle=value_loop_0to1(angle-0.015)
-	if angle<0.25 then
-		x=flr(angle*4*9)*13
-	elseif angle<0.5 then
-		x=clamp(flr(8-(angle-0.25)*4*9),0,9)*13
+	local x,y,fx,fy,a=0,97,false,false,value_loop_0to1(angle-0.015)
+	if a<0.25 then
+		x=flr(a*4*9)*13
+	elseif a<0.5 then
+		x=clamp(flr(8-(a-0.25)*4*9),0,9)*13
 		fx=true
-	elseif angle<0.75 then
-		x=clamp(flr((angle-0.5)*4*8),0,8)*13
+	elseif a<0.75 then
+		x=clamp(flr((a-0.5)*4*8),0,8)*13
 		y=113
 		fx=true
 	else
-		x=clamp(flr(7-(angle-0.75)*4*8),0,8)*13
+		x=clamp(flr(7-(a-0.75)*4*8),0,8)*13
 		y=113
 	end
 	return {x=x,y=y,fx=fx,fy=fy}
 end
 
 -- todo: 버그가 있는......듯??????
-function value_loop(v,min,max)
+--[[ function value_loop(v,min,max)
   if v<min then v=(v-min)%(max-min)+min
   elseif v>max then v=v%max+min end
   return v
-end
+end ]]
 
-function value_loop_0to1(v)
-	return v<0 and v+1 or v>1 and v-1 or v
-end
+-- function value_loop_0to1(v) return v<0 and v+1 or v>1 and v-1 or v end
+function value_loop_0to1(v) return v%1 end
 
 function coord_loop(a)
 	local x,y=a.x,a.y
@@ -1366,18 +1288,26 @@ function coord_loop(a)
 	a.x=x a.y=y
 end
 
-function get_dist(x1,y1,x2,y2)
-	return sqrt((x2-x1)^2+(y2-y1)^2)
+function is_inside(x,y,mg)
+	return not (x<-mg or x>127+mg or y<-mg or y>127+mg)
 end
 
+function get_dist(x1,y1,x2,y2) return sqrt((x2-x1)^2+(y2-y1)^2) end
+
+function add_score_eff(x,y,score)
+	add(_space_f.particles,{type="score",x=x,y=y,value=score,age=1,age_max=60})
+end
 function add_stage_info_eff()
-	add(_space_f.particles,
-		{
-			type="stage_info",
-			t1="s t a g e  "..gg.stage,
-			t2="a.d. "..ss.year,
-			age=1,
-		})
+	add(_space_f.particles,{type="stage_info",t1="s t a g e  "..gg.stage,t2="a.d. "..ss.year,age=1,age_max=180})
+end
+function add_thrust_eff(x,y,sx,sy,mx)
+	add(_space.particles,{type="thrust",x=x,y=y,sx=sx,sy=sy,age_max=mx,age=1})
+end
+function add_trail_eff(x,y,sx,sy,mx)
+	add(_space.particles,{type="enemy_trail",x=x,y=y,sx=sx,sy=sy,age_max=mx,age=1})
+end
+function add_enemy_bullet(x,y,sx,sy,mx)
+	add(_space.particles,{type="bullet_enemy",x=x,y=y,sx=sx,sy=sy,age_max=mx,age=1})
 end
 function add_explosion_eff(x,y,spd_x,spd_y,is_white,is_front)
 	local count=20
@@ -1395,7 +1325,8 @@ function add_explosion_eff(x,y,spd_x,spd_y,is_white,is_front)
 			sx=sx*(0.5+rnd()*1.2)+spd_x*0.7,
 			sy=sy*(0.5+rnd()*1.2)+spd_y*0.7,
 			size=is_bomb and 1.5 or 1,
-			age=1+rndi(16)
+			age=1+rndi(16),
+			age_max=40
 		})
 		add(layer.particles,
 		{
@@ -1404,13 +1335,14 @@ function add_explosion_eff(x,y,spd_x,spd_y,is_white,is_front)
 			y=y+rnd(4)-2,
 			sx=sx*(1+rnd()*2)+spd_x,
 			sy=sy*(1+rnd()*2)+spd_y,
-			age=1+rndi(16)
+			age=1+rndi(16),
+			age_max=30
 		})
 	end
 end
 function add_hit_eff(x,y,angle)
-	for i=1,8 do
-		local a=angle+round(i/8)*0.8-0.4
+	for i=1,6 do
+		local a=angle+round(i/6)*0.8-0.4
 		local sx=cos(a)
 		local sy=sin(a)
 		add(_space.particles,
@@ -1418,32 +1350,31 @@ function add_hit_eff(x,y,angle)
 			type="hit",
 			x=x+rnd(4)-2,
 			y=y+rnd(4)-2,
-			sx=sx*(1+rnd()*3),
-			sy=sy*(1+rnd()*3),
-			age=1+rndi(5)
+			sx=sx*(1+rnd()*2),
+			sy=sy*(1+rnd()*2),
+			age=1+rndi(5),
+			age_max=10
 		})
 	end
 end
-function add_smoke_eff(x,y,sx,sy)
-	add(_space_f.particles,{type="smoke",x=x,y=y,sx=sx,sy=sy,age=1})
+function add_smoke_eff(x,y,sx,sy,mx)
+	add(_space_f.particles,{type="smoke",x=x,y=y,sx=sx,sy=sy,age=1,age_max=mx or 80})
 end
 
 function add_score(num)
 	gg.score=min(gg.score+num/10000,10000)
-
 	-- bonus
 	if gg.bonus_earned<=0 then
 		if gg.score>=1 then
 			gg.bonus_earned=1
 			gg.planes+=1
-			add(_space_f.particles,{type="bonus",is_first=true,age=1})
+			add(_space_f.particles,{type="bonus",is_first=true,age=1,age_max=120})
 		end
 	elseif gg.score\5+1>gg.bonus_earned then
 		gg.bonus_earned=gg.score\5+1
 		gg.planes+=1
-		add(_space_f.particles,{type="bonus",age=1})
+		add(_space_f.particles,{type="bonus",age=1,age_max=120})
 	end
-	
 end
 
 function print_score(num,len,x,y)
@@ -1456,6 +1387,7 @@ function print_score(num,len,x,y)
 	if num>=10000 then t="99999999"
 	else
 		local t1,t2=round(num%1*100),flr(num)
+		if(t1>=100) t1,t2=0,t2+1
 		t=t1<=0 and "0" or tostr(t1).."00"
 		if t2>0 then
 			while #t<4 do t="0"..t end
@@ -1463,14 +1395,17 @@ function print_score(num,len,x,y)
 		end
 	end
 
+	
+
 	local t0="" for i=1,len-#t do t0=t0.."_" end
 	printa(t0,x,y,5,0)
 	printa(t,x+len*4,y,9,1)
+	return t
 end
 
 function draw_outcover(w,h,c,cx,cy,mg)
-	local cx=cx and cx or 64
-	local cy=cy and cy or 64
+	local cx=cx or 64
+	local cy=cy or 64
 	local mg=mg or 0 -- 화면 밖까지 그릴 마진(화면 진동할 때 필요)
 	if (cy-1-h/2>=-mg) rectfill(-mg,-mg,127+mg,cy-1-h/2,c)
 	if (cy+h/2<128+mg) rectfill(-mg,cy+h/2,127+mg,127+mg,c)
@@ -1502,16 +1437,23 @@ dim_pal={}
 for i=1,16 do dim_pal[i]=sub(dim_colors,i,_) end
 
 ss={}
-ss_set=function(n) for i,v in pairs(ss_data[n]) do ss[i]=v end end
+ss_set=function(n)
+	n=(n-1)%#ss_data+1
+	for i,v in pairs(ss_data[n]) do ss[i]=v end
+	-- 페이즈 진행에 따라 난이도 올리기
+	ss.zako_to_boss=min(ss_data[n].zako_to_boss*gg.phase,300)
+	ss.max_msl=min(ss_data[n].max_msl+gg.phase-1,8)
+end
 ss_data={ -- 스테이지 데이타
 	{
 		zako_type=1, -- 자코는 1~99
-		mid_type=nil, -- 중간보스는 101~199
+		mid_type=0, -- 중간보스는 101~199
 		boss_type=201, -- 보스는 201~299
 		max_zako=6, -- 적 최대 동시 출현 수
 		zako_to_boss=20, -- 자코 몇 마리 잡아야 보스가 나올까?
-		year="1 9 1 0", -- 해당년도(1910->1940->1970->1982->2001(우주?)->다시 첨부터 반복)
-		sky_color=12, -- 원경 하늘 색
+		max_msl=1, -- 화면에 나올 수 있는 미사일 최대
+		year="1 9 1 0",
+		sky_color=12, -- 하늘 색
 		cloud_far_color=6, -- 원경 구름 색
 		cloud_color=7, -- 구름 밝은쪽 색
 		cloud_shade_color=6, -- 구름 그늘진 색
@@ -1519,36 +1461,40 @@ ss_data={ -- 스테이지 데이타
 	{
 		zako_type=2,
 		mid_type=101, -- 초록 폭격기
-		boss_type=201,
+		boss_type=202, -- 주황 폭격기
 		max_zako=7,
-		zako_to_boss=30,
+		zako_to_boss=25,
+		max_msl=1,
 		year="1 9 2 0",
 		sky_color=13,cloud_far_color=5,cloud_color=6,cloud_shade_color=13,
 	},
 	{
 		zako_type=3,
-		mid_type=nil,
-		boss_type=201,
-		max_zako=7,
-		zako_to_boss=35,
+		mid_type=102, -- 회색 열기구
+		boss_type=203, -- 빨간 폭격기
+		max_zako=8,
+		zako_to_boss=30,
+		max_msl=1,
 		year="1 9 7 0",
 		sky_color=5,cloud_far_color=4,cloud_color=9,cloud_shade_color=4,
 	},
 	{
 		zako_type=3,
-		mid_type=nil,
-		boss_type=201,
+		mid_type=102,
+		boss_type=203,
 		max_zako=8,
-		zako_to_boss=40,
+		zako_to_boss=35,
+		max_msl=2,
 		year="1 9 8 2",
 		sky_color=4,cloud_far_color=5,cloud_color=9,cloud_shade_color=5,
 	},
 	{
-		zako_type=3,
-		mid_type=nil,
-		boss_type=202,
+		zako_type=4,
+		mid_type=102,
+		boss_type=203,
 		max_zako=8,
-		zako_to_boss=50,
+		zako_to_boss=35,
+		max_msl=3,
 		year="2 0 0 1",
 		sky_color=1,cloud_far_color=0,cloud_color=2,cloud_shade_color=0,
 	},
@@ -1561,7 +1507,8 @@ gg_reset=function()
 		control=false,
 		control_waiting=0,
 		stage=1,
-		planes=3,
+		phase=1, -- 막판 클리어하면 1씩 올라감(난이도 증가)
+		planes=2,
 		score=0,
 		bonus_earned=0,
 		highscore=0,
@@ -1607,8 +1554,17 @@ end
 
 
 
+--[[ 오늘의 업데이트(7/27~28)
+- ******** 점수 버그 있음!!!!!! ******** (2만점, 3만점 되는 순간 자릿수가 바뀌는데....???) -> 고쳤다!
+- 구름 스프라이트 망점 처리
+- 적 타입 여러가지 추가
+- 유도미사일 타입 추가(3~5스테이지 보스가 발사)
+- 스테이지별 미사일 최대 수 설정(페이즈 올라갈 때마다 많아짐)
+- 페이즈 추가(막판 클리어할 때마다 1씩 올라감, 난이도도 같이 상승)
+- 게임오버 화면에 스테이지, 점수 표기
+]]
 
---[[ 오늘의 업데이트
+--[[ 오늘의 업데이트(7/26)
 - 내가 죽으면 내가 쏜 총알이 적을 맞히지 않음(충돌체크 건너뜀)
 - 입력 대기시간 추가(타이틀 1초, 게임오버 2초)
 - 중간보스 추가(폭격기)
@@ -1622,10 +1578,10 @@ end
 
 --[[ todo list
 - 보스 죽이는 순간에 총알 맞으면 상황 꼬인다! -> 내가 죽었을 때 내 총알의 충돌처리 안 하는 걸로 해결...?(상황 재발하는지 지켜봐야 함)
-- 소리, BGM 제대로...(죽거나 클리어 등)
+- 소리, BGM 제대로...(죽거나 클리어, 미사일 발사 등)
 - UI의 자코 게이지 자코 타입에 맞게 표시
 - 적의 공격 타입을 정의해놓고 공격할 때 쓰는 게 좋을 듯?
-- 화면밖 인디케이터 색상을 적에 맞는 걸로...(자코는 아예 빼도 될 듯)
+- 화면밖 인디케이터 색상을 적에 맞는 걸로...
 - 중간보스 이상은 화면 밖에 있을 때도 검은연기 뿜뿜하자(우하단만 처리해도 될 듯?)
 - 적 여러가지 타입으로
   - 1: 전투기 + 열기구(보스)
@@ -1638,11 +1594,4 @@ end
 - 자코들 출격할 때 편대비행?
 - X 버튼 기능 추가(뭐인지 원작 살펴봐야 함) -> 원작에 암것도 없는데?????
 - 녹화&재생 기능
-
-<처리한 것들>
-- 게임 플레이 루프(막판 깨면 1스테이부터 다시 시작 = 원작도 이럼)
-- 스테이지 진행
-- 상황에 맞게 자코, 보스 출격시키기
-- 죽으면 적들 다 제거 ********
-- 죽고 부활하는 시점에 적, 파티클 싹 날리자
 ]]
