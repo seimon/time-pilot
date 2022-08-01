@@ -1,5 +1,5 @@
 dev=0
-ver="0.6 - under development" -- 2022/07/28
+ver="0.65 - under development" -- 2022/08/01
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -179,10 +179,10 @@ function print_log()
 end
 function print_system_info()
 	local cpu=round(stat(1)*10000)
-	local mem=tostr(round(stat(0)))
+	-- local mem=tostr(round(stat(0)))
 	local s=(cpu\100).."."..(cpu%100\10)..(cpu%10).."%"
 	printa(s,128,2,0,1) printa(s,127,1,11,1)
-	printa(mem,98,2,0,1) printa(mem,97,1,11,1)
+	-- printa(mem,98,2,0,1) printa(mem,97,1,11,1)
 end
 
 
@@ -239,6 +239,7 @@ end
 -- ptcl_size_enemy="010111010100"
 -- ptcl_size_thrust="001011212222121211111110101000000"
 -- ptcl_thrust_col="777aa99ee8844d4dd6d666"
+ptcl_trail_col="777aa99ee8844d4dd60d606006"
 ptcl_fire_col="89a7"
 ptcl_size_explosion="3577767766666555544444333332222221111111000"
 ptcl_col_explosion="77aaa99a99888988999494445555666"
@@ -331,7 +332,12 @@ function space:_draw()
 			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(2)-1
 		
 		elseif v.type=="enemy_trail" then
-			pset(v.x,v.y,ss.cloud_color)
+			local c=ss.cloud_color
+			if v.is_msl and v.age<#ptcl_trail_col then
+				c=tonum(sub(ptcl_trail_col,1+v.age,_),0x1)
+				if(c==0) c=ss.cloud_color
+			end
+			pset(v.x,v.y,c)
 			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(0.4)-0.2
 			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(0.4)-0.2
 
@@ -341,7 +347,6 @@ function space:_draw()
 			v.y+=v.sy+self.spd_y+self.spd_cy
 			local c=tonum(sub(ptcl_fire_col,1+round(v.age/16),_),0x1)
 			
-			-- if(v.age>v.age_max or v.x>131 or v.y>131 or v.x<-4 or v.y<-4) del(self.particles,v)
 			if(not is_inside(v.x,v.y,4)) del(self.particles,v) -- 화면 밖으로 나간 총알은 제거
 
 			-- 총알 그리기 & 총알과 적 충돌처리(조종 가능할 때만)
@@ -384,8 +389,10 @@ function space:_draw()
 				end
 
 			elseif v.type=="bullet_enemy" then
-				circ(v.x,v.y,1,9+rndi(3))
-				circfill(v.x,v.y,0,8)
+				-- circfill(v.x,v.y,1+(f/10)%2,7+rndi(7))
+				-- circfill(v.x,v.y,1+round((v.age/10)%2*0.7),7+rndi(7))
+				circfill(v.x,v.y,1+round((v.age/8)%2*0.5),7+(v.age/3)%7)
+				pset(v.x,v.y,8)
 				if gg.control and not _ship.is_killed and abs(v.x-cx)<=3 and abs(v.y-cy)<=3 then
 						_ship:kill()
 				end
@@ -629,8 +636,9 @@ function ship:on_update()
 					sfx(32,-1)
 					add(_space.particles,{type="circle",size=3,age=1,age_max=32})
 					add_explosion_eff(e.x,e.y,self.spd_x,self.spd_y,true)
-					add_score(5000)
-					add_score_eff(e.x,e.y,5000)
+					local s=min(2000+gg.phase*3000,20000)
+					add_score(s)
+					add_score_eff(e.x,e.y,s)
 					del(_enemies.list,e)
 				else
 					self:kill()
@@ -782,41 +790,42 @@ function enemies:_draw()
 		e.y=e.space_y+cy
 		
 		if e.type==801 then -- 유도미사일: 항상 나를 향함
-			if (f+i*5)%20==0 then
+			if (f+i)%15==0 then
 				local to_angle=atan2(cx-e.x,cy-e.y)
 				local angle_dist=value_loop_0to1(e.angle-to_angle)
-				if angle_dist>0.1 then
+				e.angle_acc=0.003*get_rotate_dir(e.angle,to_angle)
+				--[[ if angle_dist>0.08 then
 					e.angle_acc=0.003*get_rotate_dir(e.angle,to_angle)
 				else
 					e.angle_acc=0
-				end
+				end ]]
 			end
 
 		elseif e.type<100 then -- 자코: 정기적으로 비행 방향 업데이트 + 공격
-			if (f+i*10)%90==0 then
+			-- if (f+i*10)%90==0 then
+			if (f+i*7)%60==0 then
 				local to_angle=atan2(cx-e.x,cy-e.y)
 				local angle_dist=value_loop_0to1(e.angle-to_angle)
-				if angle_dist>0.2 then
+				if angle_dist>0.15 then
 					e.angle_acc=0.0022*get_rotate_dir(e.angle,to_angle)
 				else
 					e.angle_acc=0
 				end
 				
-				-- 전방에 보인다 싶으면 공격
-				-- todo: 너무 가까울 때는 안쏴야 할 듯한.....????
-				if angle_dist<0.2 then
-					if e.x>0 and e.y>0 and e.x<127 and e.y<127 then
-						add_enemy_bullet(e.x+e.spd_x*16,e.y+e.spd_y*16,cos(e.angle)*0.7,sin(e.angle)*0.7,150)
-						sfx(25,-1)
-					end
+				-- 전방에 보인다 싶으면 공격 / todo: 너무 가까울 때는 안쏴야 할 듯한.....????
+				if e.bullet_timer<=0 and angle_dist<0.15 and is_inside(e.x,e.y,0) then
+					add_enemy_bullet(e.x+e.spd_x*16,e.y+e.spd_y*16,cos(e.angle)*0.65,sin(e.angle)*0.65,150)
+					e.bullet_timer=180
+					sfx(25,-1)
 					-- line(e.x,e.y,cx,cy,11) -- 나를 향해 선을 그려보자
 				end
 			end
+			e.bullet_timer-=1
 
 		elseif e.type>100 and e.type<300 then -- 중간보스,보스는 전방위로 공격
-			if is_inside(e.x,e.y,0) and f%60==0 then
-				if e.type==203 then -- 미사일 공격 타입
-					if(self.msl_counter<ss.max_msl) self:add(e.x-cx,e.y-cy+6,801,0) sfx(25,-1)
+			if f%60==0 and is_inside(e.x,e.y,0) then
+				if e.type==203 and self.msl_counter<ss.max_msl then -- 미사일 공격 타입 & 미사일 쏴도 되는 상황
+					self:add(e.x-cx,e.y-cy+6,801,0) sfx(25,-1)
 				else
 					local to_angle=atan2(cx-e.x,cy-e.y)+rnd(0.08)-0.04
 					local sx,sy=cos(to_angle)*0.4,sin(to_angle)*0.4
@@ -838,7 +847,7 @@ function enemies:_draw()
 
 		-- 타입에 맞는 트레일 추가(낙하산 제외)
 		if e.type==801 then -- 유도미사일
-			if(f%2==0) add_trail_eff(e.x,e.y,-e.spd_x*1.3,-e.spd_y*1.3,60)
+			if(f%2==0) add_trail_eff(e.x,e.y,-e.spd_x*1.3,-e.spd_y*1.3,60,true)
 		elseif f%3==0 and e.type!=999 then
 			local x,y=e.x-e.spd_x*12,e.y-e.spd_y*12
 			local sx,sy=-e.spd_x*1.8,-e.spd_y*1.8
@@ -947,7 +956,7 @@ function enemies:add(x,y,t,ang)
 	if(t==1) spd=0.3 -- 자코(초록 비행기)
 	if(t==2) spd=0.4 -- 자코(빨간 비행기)
 	if(t==3) spd=0.5 -- 자코(파란 비행기)
-	if(t==4) hp,spd=2,0.55 -- 자코(주황 비행기)
+	if(t==4) hp,spd=1,0.55 -- 자코(주황 비행기)
 
 	if(t==101) hp,spd,w,h=10,0.3,24,10 -- 중간보스(초록 폭격기) / stage 2
 	if(t==102) hp,spd,w,h=15,0.2,16,14 -- 중간보스(회색 열기구) / stage 3
@@ -956,7 +965,7 @@ function enemies:add(x,y,t,ang)
 	if(t==202) hp,spd,w,h=30,0.3,24,10 -- 임시보스(주황 폭격기) / stage 2
 	if(t==203) hp,spd,w,h=50,0.3,24,10 -- 임시보스(빨간 폭격기) / stage 3
 
-	if(t==801) w,h,spd=6,6,0.6 self.msl_counter+=1 -- 유도미사일
+	if(t==801) w,h,spd=6,6,0.8 self.msl_counter+=1 -- 유도미사일 속도 0.6->0.8
 	if(t==999) w,h=14,14 -- 낙하산 충돌영역 넉넉하게
 
 	hp=(t<100 or t==801) and hp or hp*gg.phase -- 페이즈 진행할수록 적 피통 커짐(자코, 미사일 제외)
@@ -978,6 +987,7 @@ function enemies:add(x,y,t,ang)
 		hp=hp, 
 		hp_max=hp,
 		hit_count=0,
+		bullet_timer=0,
 		type=t,
 		-- app_type=1, -- 외형 타입: 1 프로펠러기, 2 미래전투기(플레이어), 3 헬기, 4 비행선, 5 폭격기, 6 UFO ...
 		-- atk_type=atk, -- 공격 타입: 1 내 전방, 2 무조건 플레이어 방향, 3 유도미사일
@@ -1303,8 +1313,8 @@ end
 function add_thrust_eff(x,y,sx,sy,mx)
 	add(_space.particles,{type="thrust",x=x,y=y,sx=sx,sy=sy,age_max=mx,age=1})
 end
-function add_trail_eff(x,y,sx,sy,mx)
-	add(_space.particles,{type="enemy_trail",x=x,y=y,sx=sx,sy=sy,age_max=mx,age=1})
+function add_trail_eff(x,y,sx,sy,mx,is_msl)
+	add(_space.particles,{type="enemy_trail",x=x,y=y,sx=sx,sy=sy,age_max=mx,age=1,is_msl=is_msl})
 end
 function add_enemy_bullet(x,y,sx,sy,mx)
 	add(_space.particles,{type="bullet_enemy",x=x,y=y,sx=sx,sy=sy,age_max=mx,age=1})
@@ -1441,7 +1451,8 @@ ss_set=function(n)
 	n=(n-1)%#ss_data+1
 	for i,v in pairs(ss_data[n]) do ss[i]=v end
 	-- 페이즈 진행에 따라 난이도 올리기
-	ss.zako_to_boss=min(ss_data[n].zako_to_boss*gg.phase,300)
+	ss.zako_to_boss=min(ss_data[n].zako_to_boss*gg.phase,200)
+	ss.max_zako=min(ss_data[n].max_zako+gg.phase-1,12)
 	ss.max_msl=min(ss_data[n].max_msl+gg.phase-1,8)
 end
 ss_data={ -- 스테이지 데이타
@@ -1473,7 +1484,7 @@ ss_data={ -- 스테이지 데이타
 		mid_type=102, -- 회색 열기구
 		boss_type=203, -- 빨간 폭격기
 		max_zako=8,
-		zako_to_boss=30,
+		zako_to_boss=27,
 		max_msl=1,
 		year="1 9 7 0",
 		sky_color=5,cloud_far_color=4,cloud_color=9,cloud_shade_color=4,
@@ -1483,7 +1494,7 @@ ss_data={ -- 스테이지 데이타
 		mid_type=102,
 		boss_type=203,
 		max_zako=8,
-		zako_to_boss=35,
+		zako_to_boss=30,
 		max_msl=2,
 		year="1 9 8 2",
 		sky_color=4,cloud_far_color=5,cloud_color=9,cloud_shade_color=5,
@@ -1493,7 +1504,7 @@ ss_data={ -- 스테이지 데이타
 		mid_type=102,
 		boss_type=203,
 		max_zako=8,
-		zako_to_boss=35,
+		zako_to_boss=33,
 		max_msl=3,
 		year="2 0 0 1",
 		sky_color=1,cloud_far_color=0,cloud_color=2,cloud_shade_color=0,
@@ -1554,29 +1565,18 @@ end
 
 
 
---[[ 오늘의 업데이트(7/27~28)
-- ******** 점수 버그 있음!!!!!! ******** (2만점, 3만점 되는 순간 자릿수가 바뀌는데....???) -> 고쳤다!
-- 구름 스프라이트 망점 처리
-- 적 타입 여러가지 추가
-- 유도미사일 타입 추가(3~5스테이지 보스가 발사)
-- 스테이지별 미사일 최대 수 설정(페이즈 올라갈 때마다 많아짐)
-- 페이즈 추가(막판 클리어할 때마다 1씩 올라감, 난이도도 같이 상승)
-- 게임오버 화면에 스테이지, 점수 표기
-]]
 
---[[ 오늘의 업데이트(7/26)
-- 내가 죽으면 내가 쏜 총알이 적을 맞히지 않음(충돌체크 건너뜀)
-- 입력 대기시간 추가(타이틀 1초, 게임오버 2초)
-- 중간보스 추가(폭격기)
-- 자코는 화면 밖 인디케이터 표시하지 않음
-- 화면 밖으로 많이 나간 적들은 제거
-- 적의 w,h 값을 사용해서 충돌 처리(총알, 동체 충돌 모두)
-- 중간보스,보스 hp 비율에 맞게 검은연기 뿜기
-- 타임점프할 때 빛선 연출 추가
-- 조종 가능한 상태에서만 총알이 발사됨
+--[[ 오늘의 업데이트 2022/08/01
+- 적, 미사일 행동 개선
+- 적 총알 발사 빈도 정상화
+- 총알 가독성 높임
+- 미사일 속도 더 빠르게
+- 미사일은 트레일에 불꽃 느낌 살짝 첨가
+- 페이즈가 오르면 낙하산 점수도 3000점씩 증가(최대 20000)
 ]]
 
 --[[ todo list
+- 자코가 연속으로 2~3발씩 쏘는 경우가 많다
 - 보스 죽이는 순간에 총알 맞으면 상황 꼬인다! -> 내가 죽었을 때 내 총알의 충돌처리 안 하는 걸로 해결...?(상황 재발하는지 지켜봐야 함)
 - 소리, BGM 제대로...(죽거나 클리어, 미사일 발사 등)
 - UI의 자코 게이지 자코 타입에 맞게 표시
@@ -1590,7 +1590,7 @@ end
 	- 4: 나랑 같은 전투기(유도미사일 자코) + 신형 폭격기(뭘 쏘는지 모르겠는 보스)
 	- 5(우주): UFO(2종류 총알) + 대형 UFO(보스)
 - 적 움직임, 총 쏘는 간격 등이 허술한 상태
-- 스코어 시스템 교체(아스테로이드에 쓴 변수 2개 쓰는 방식)
+- 스코어 시스템 교체(아스테로이드에 쓴 변수 2개 쓰는 방식) -> 일단 급한 버그만 고쳐 둠
 - 자코들 출격할 때 편대비행?
 - X 버튼 기능 추가(뭐인지 원작 살펴봐야 함) -> 원작에 암것도 없는데?????
 - 녹화&재생 기능
