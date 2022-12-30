@@ -1,5 +1,5 @@
 dev=0
-ver="0.65 - under development" -- 2022/08/01
+ver="0.92" -- 2022/12/30
 
 -- 원작 참고
 -- https://youtu.be/JPBkZHX3ju8
@@ -109,10 +109,7 @@ end
 -- sprite class for scene graph
 sprite=class(event)
 function sprite:init()
-	self.children={}
-	self.parent=nil
-	self.x=0
-	self.y=0
+	reset(self,"children,{},parent,nil,x,0,y,0")
 end
 function sprite:set_xy(x,y)
 	self.x=x
@@ -159,34 +156,6 @@ end
 
 
 
--- <log, system info> --------------------
-log_d=nil
-log_counter=0
-function log(...)
-	local s=""
-	for i,v in pairs{...} do
-		s=s..v..(i<#{...} and "," or "")
-	end
-	if log_d==nil then log_d=s
-	else log_d=sub(s.."\n"..log_d,1,200) end
-	log_counter=3000
-end
-function print_log()
-	if(log_d==nil or log_counter<=1) log_d=nil return
-	log_counter-=1
-	?log_d,2,2,0
-	?log_d,1,1,8
-end
-function print_system_info()
-	local cpu=round(stat(1)*10000)
-	-- local mem=tostr(round(stat(0)))
-	local s=(cpu\100).."."..(cpu%100\10)..(cpu%10).."%"
-	printa(s,128,2,0,1) printa(s,127,1,11,1)
-	-- printa(mem,98,2,0,1) printa(mem,97,1,11,1)
-end
-
-
-
 -- <utilities> --------------------
 function round(n) return flr(n+.5) end
 function swap(v) if v==0 then return 1 else return 0 end end -- 1 0 swap
@@ -205,12 +174,7 @@ end
 space=class(sprite)
 function space:on_update() end
 function space:init(is_front)
-	self.spd_x=0
-	self.spd_y=0
-	self.spd_cx=0
-	self.spd_cy=0
-	self.stars={}
-	self.particles={}
+	reset(self,"spd_x,0,spd_y,0,spd_cx,0,spd_cy,0,stars,{},particles,{}")
 	self.is_front=is_front
 
 	local function make_cloud(i,spd,spd_max,size)
@@ -334,7 +298,7 @@ function space:_draw()
 		elseif v.type=="enemy_trail" then
 			local c=ss.cloud_color
 			if v.is_msl and v.age<#ptcl_trail_col then
-				c=tonum(sub(ptcl_trail_col,1+v.age,_),0x1)
+				c=tonum(ptcl_trail_col[1+v.age],0x1)
 				if(c==0) c=ss.cloud_color
 			end
 			pset(v.x,v.y,c)
@@ -345,7 +309,7 @@ function space:_draw()
 			local ox,oy=v.x,v.y
 			v.x+=v.sx-self.spd_x+self.spd_cx
 			v.y+=v.sy+self.spd_y+self.spd_cy
-			local c=tonum(sub(ptcl_fire_col,1+round(v.age/16),_),0x1)
+			local c=tonum(ptcl_fire_col[1+round(v.age/16)],0x1)
 			
 			if(not is_inside(v.x,v.y,4)) del(self.particles,v) -- 화면 밖으로 나간 총알은 제거
 
@@ -399,9 +363,8 @@ function space:_draw()
 			end
 
 		elseif v.type=="explosion" or v.type=="explosion_white" then
-			local c=(v.type=="explosion_white") and 7 or tonum(sub(ptcl_col_explosion,v.age,_),0x1)
-			circfill(v.x,v.y,
-				sub(ptcl_size_explosion,v.age,_)*v.size,c)
+			local c=(v.type=="explosion_white") and 7 or tonum(ptcl_col_explosion[v.age],0x1)
+			circfill(v.x,v.y,ptcl_size_explosion[v.age]*v.size,c)
 			v.x+=v.sx-self.spd_x+self.spd_cx+rnd(1)-0.5
 			v.y+=v.sy+self.spd_y+self.spd_cy+rnd(1)-0.5
 			v.sx*=0.92
@@ -409,7 +372,7 @@ function space:_draw()
 			v.sy+=0.01
 
 		elseif v.type=="explosion_dust" then
-			local c=tonum(sub(ptcl_col_explosion_dust,1+flr(v.age/5),_),0x1)
+			local c=tonum(ptcl_col_explosion_dust[1+flr(v.age/5)],0x1)
 			pset(v.x,v.y,c)
 			v.x+=v.sx-self.spd_x
 			v.y+=v.sy+self.spd_y
@@ -418,7 +381,7 @@ function space:_draw()
 			v.sy+=0.02
 
 		elseif v.type=="hit" then
-			local c=tonum(sub(ptcl_col_hit,1+flr(v.age/3),_),0x1)
+			local c=tonum(ptcl_col_hit[1+flr(v.age/3)],0x1)
 			pset(v.x,v.y,c)
 			v.x+=v.sx-self.spd_x
 			v.y+=v.sy+self.spd_y
@@ -472,29 +435,30 @@ end
 -- <ship> --------------------
 ship=class(sprite)
 function ship:init()
-	self.spd=0
-	self.spd_x=0
-	self.spd_y=0
-	self.spd_cx=0
-	self.spd_cy=0
-	self.spd_max=0.7
-	self.angle=0
-	self.angle_acc=0
-	self.angle_acc_pow=0.0006
-	self.thrust=0
-	self.thrust_acc=0
-	self.thrust_max=1.4
+	-- self.spd=0
+	-- self.spd_x=0
+	-- self.spd_y=0
+	-- self.spd_cx=0
+	-- self.spd_cy=0
+	-- self.spd_max=0.7
+	-- self.angle=0
+	-- self.angle_acc=0
+	-- self.angle_acc_pow=0.0006
+	-- self.thrust=0
+	-- self.thrust_acc=0
+	-- self.thrust_max=1.4
+	-- self.fire_spd=2.2
+	-- self.fire_intv=0
+	-- self.fire_intv_full=6
+	-- self.hit_count=0
+	-- self.is_killed=false
+	-- self.killed_angle=0.65
+	-- self.timer_killed=0
+	-- self.time_jump_mode=false
+	-- self.time_jump_count=0
+	reset(self,"spd,0,spd_x,0,spd_y,0,spd_cx,0,spd_cy,0,spd_max,0.7,angle,0,angle_acc,0,angle_acc_pow,0.0006,thrust,0,thrust_acc,0,thrust_max,1.4,fire_spd,2.2,fire_intv,0,fire_intv_full,6,hit_count,0,is_killed,false,killed_angle,0.65,timer_killed,0,time_jump_mode,false,time_jump_count,0")
 	self.tail={x=0,y=0}
 	self.head={x=0,y=0}
-	self.fire_spd=2.2
-	self.fire_intv=0
-	self.fire_intv_full=6
-	self.hit_count=0
-	self.is_killed=false
-	self.killed_angle=0.65
-	self.timer_killed=0
-	self.time_jump_mode=false
-	self.time_jump_count=0
 	self:show(true)
 	self:on("update",self.on_update)
 end
@@ -685,11 +649,7 @@ end
 
 function ship:rebirth()
 	music(18,1000,3)
-	self.is_killed=false
-	self.timer_killed=0
-	self.angle=0
-	self.time_jump_mode=false
-	self.time_jump_count=0
+	reset(self,"is_killed,false,timer_killed,0,angle,0,time_jump_mode,false,time_jump_count,0")
 	gg.control=true
 	_ui:show(true)
 end
@@ -703,23 +663,10 @@ function enemies:init()
 	self:show(true)
 end
 function enemies:reset()
-	self.list={}
-	self.appear_wait=5
-	self.mid_appear=false
-	self.boss_appear=false
-	self.para_appear=false
-	self.para_chker=0
-	self.msl_counter=0
-	self.boss_killed=false
+	reset(self,"list,{},appear_wait,5,mid_appear,false,boss_appear,false,para_appear,false,para_chker,0,msl_counter,0,boss_killed,false")
 end
 function enemies:clear() -- 조용히 제거만 하는 것(죽고 다시 시작할 때)
-	self.list={}
-	self.appear_wait=5
-	self.mid_appear=false
-	self.boss_appear=false
-	self.para_appear=false
-	self.para_chker=0
-	self.msl_counter=0
+	reset(self,"list,{},appear_wait,5,mid_appear,false,boss_appear,false,para_appear,false,para_chker,0,msl_counter,0")
 end
 function enemies:mid_kill()
 	self.mid_appear=false
@@ -971,29 +918,31 @@ function enemies:add(x,y,t,ang)
 	hp=(t<100 or t==801) and hp or hp*gg.phase -- 페이즈 진행할수록 적 피통 커짐(자코, 미사일 제외)
 
 	local e={
-		x=0,
-		y=0,
 		w=w,
 		h=h,
 		spd=spd,
-		spd_x=0,
-		spd_y=0,
-		acc_x=0,
-		acc_y=0,
+		-- x=0,
+		-- y=0,
+		-- spd_x=0,
+		-- spd_y=0,
+		-- acc_x=0,
+		-- acc_y=0,
+		-- angle_acc=0,
+		-- hit_count=0,
+		-- bullet_timer=0,
 		angle=ang or rnd(),
-		angle_acc=0,
 		space_x=x,
 		space_y=y,
 		hp=hp, 
 		hp_max=hp,
-		hit_count=0,
-		bullet_timer=0,
 		type=t,
 		-- app_type=1, -- 외형 타입: 1 프로펠러기, 2 미래전투기(플레이어), 3 헬기, 4 비행선, 5 폭격기, 6 UFO ...
 		-- atk_type=atk, -- 공격 타입: 1 내 전방, 2 무조건 플레이어 방향, 3 유도미사일
 		-- fly_type=1, -- 비행 타입: 1 프로펠러기, 2 수평등속비행(열기구, 폭격기), 3 헬리콥터, 4 유도미사일
 		-- trail_type=1, -- 비행운 타입: 1 일반 쩜쩜, 2 유도미사일 분사
 	}
+	-- for token saving
+	reset(e,"x,0,y,0,spd_x,0,spd_y,0,acc_x,0,acc_y,0,angle_acc,0,hit_count,0,bullet_timer,0")
 	add(self.list,e)
 end
 
@@ -1002,19 +951,11 @@ end
 -- <cover> --------------------
 cover=class(sprite)
 function cover:init()
-	self.timer=0
-	self.use_dim=false
-	self.cover_w=0
-	self.cover_h=0
-	self.cx=0
-	self.cy=0
-	self.show_gameover=false
-	self.is_stage_clear=false
+	reset(self,"timer,0,use_dim,false,cover_w,0,cover_h,0,cx,0,cy,0,show_gameover,false,is_stage_clear,false")
 end
 function cover:cover_killed() -- 죽었을 때 커버 씌우기
 	self:show(true)
-	self.timer=0
-	self.use_dim=true
+	reset(self,"timer,0,use_dim,true")
 	ss.sky_color=12 ss.cloud_color=7 ss.cloud_shade_color=6 ss.cloud_far_color=6 -- 단색화 전에 원경 색상 보정
 	self:on("update",self.on_cover)
 end
@@ -1035,14 +976,13 @@ function cover:_draw()
 		self.cy=62+rnd(4)
 		local t="gameover"
 		for i=1,#t do
-			printa("\^w\^t"..sub(t,i,_),rnd(2)+16+i*9+(i>4 and 5 or 0),45+rnd(4),0,0,true,12)
+			printa("\^w\^t"..t[i],rnd(2)+16+i*9+(i>4 and 5 or 0),45+rnd(4),0,0,true,12)
 		end
 		printa("\^istage "..gg.stage..", score ".._ui.score_str,67+rnd(1.6),63+rnd(1.6),0,0.5,true,12)
 		if(f%60<40) printa("press 🅾️❎ to coutinue",19+rnd(2),73+rnd(2),0,0,true,12)
 		self.timer+=1
 		if (btn(4) or btn(5)) and self.timer>120 then
-			self.timer=0
-			self.show_gameover=false
+			reset(self,"timer,0,show_gameover,false")
 			self:on("update",self.on_cover_to_title)
 			sfx(6,-1)
 		end
@@ -1061,29 +1001,25 @@ function cover:on_cover()
 	self.cy=cy
 
 	if is_gameover then
-		self.cx=64
-		self.cy=64
+		reset(self,"cx,64,cy,64")
 		self.cover_h=self.cover_w
 		if self.cover_w<=110 then
-			self.timer=0
-			self.show_gameover=true
+			reset(self,"timer,0,show_gameover,true")
 			self:remove_handler("update",self.on_cover)
 			-- 여기서 멈추고 입력 대기(_draw에서 처리)
 		end
 
 	elseif self.cover_w<=0 then -- 커버 완전히 덮임
-		self.timer=0
-		self.use_dim=false
-		self.cx=64
-		self.cy=64
+		reset(self,"timer,0,use_dim,false,cx,64,cy,64")
 
 		-- 죽고 다시 시작할 준비(부활, 적들 제거, 총알이나 파티클 제거)
 		_ship:rebirth()
 		_enemies:clear()
 		_space.particles={}
 		_space_f.particles={}
-		gg.control=false
-		gg.control_waiting=240
+		-- gg.control=false
+		-- gg.control_waiting=240
+		reset(gg,"control,false,control_waiting,240")
 
 		-- 스테이지 클리어라면? 다음 스테이지로 넘어갈 준비
 		if self.is_stage_clear then
@@ -1136,10 +1072,7 @@ function ui:init()
 	self:reset()
 end
 function ui:reset()
-	self.kill_zako=0
-	self.kill_boss=0
-	self.kill_para=0
-	self.score_str="0"
+	reset(self,"kill_zako,0,kill_boss,0,kill_para,0,score_str,0")
 end
 function ui:_draw()
 	rectfill(-3,121,130,130,0)
@@ -1170,9 +1103,7 @@ function title:init()
 	self:show(true)
 end
 function title:reset()
-	self.to_sky=false
-	self.tran_timer=30
-	self.tran_timer_max=30
+	reset(self,"to_sky,false,tran_timer,30,tran_timer_max,30")
 end
 function title:_draw()
 	if(gg.scene=="title") self:draw_title()
@@ -1204,8 +1135,9 @@ function title:draw_title()
 		self.tran_timer-=1
 		if self.tran_timer<=0 then
 			self:reset()
-			gg.scene="sky"
-			gg.control_waiting=150
+			-- gg.scene="sky"
+			-- gg.control_waiting=150
+			reset(gg,"scene,sky,control_waiting,150")
 			add_stage_info_eff()
 		end
 	end
@@ -1214,6 +1146,19 @@ end
 
 
 -- <etc. functions> --------------------
+function reset(obj,params)
+	params=split(params)
+	for i=1,#params,2 do
+		local v=params[i+1]
+		if v=="false" then v=false
+		elseif v=="true" then v=true
+		elseif v=="nil" then v=nil
+		else v=v=="{}" and {} or v end
+		obj[params[i]]=v
+	end
+end
+
+
 -- 화면 흔들기
 function shaking()
 	if shake_t>0 then
@@ -1325,7 +1270,7 @@ function add_explosion_eff(x,y,spd_x,spd_y,is_white,is_front)
 	for i=1,count do
 		local sx=cos(i/count+rnd()*0.1)
 		local sy=sin(i/count+rnd()*0.1)
-		if is_bomb then sx*=1.6 sy*=1.6 end
+		-- if is_bomb then sx*=1.6 sy*=1.6 end
 		local type=is_white and "explosion_white" or "explosion"
 		add(layer.particles,
 		{
@@ -1334,7 +1279,7 @@ function add_explosion_eff(x,y,spd_x,spd_y,is_white,is_front)
 			y=y+rnd(6)-3,
 			sx=sx*(0.5+rnd()*1.2)+spd_x*0.7,
 			sy=sy*(0.5+rnd()*1.2)+spd_y*0.7,
-			size=is_bomb and 1.5 or 1,
+			size=1, --size=is_bomb and 1.5 or 1,
 			age=1+rndi(16),
 			age_max=40
 		})
@@ -1424,13 +1369,13 @@ function draw_outcover(w,h,c,cx,cy,mg)
 
 	local ww="6421100"
 	local x1,y1=cx-w/2,cy-1-h/2
-	for i=1,#ww do line(x1,y1+i,x1+sub(ww,i,_),y1+i,c) end
+	for i=1,#ww do line(x1,y1+i,x1+ww[i],y1+i,c) end
 	x1=cx-1+w/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1+i,x1,y1+i,c) end
+	for i=1,#ww do line(x1-ww[i],y1+i,x1,y1+i,c) end
 	y1=cy+h/2
-	for i=1,#ww do line(x1-sub(ww,i,_),y1-i,x1,y1-i,c) end
+	for i=1,#ww do line(x1-ww[i],y1-i,x1,y1-i,c) end
 	x1=cx-w/2
-	for i=1,#ww do line(x1,y1-i,x1+sub(ww,i,_),y1-i,c) end
+	for i=1,#ww do line(x1,y1-i,x1+ww[i],y1-i,c) end
 end
 
 
@@ -1444,7 +1389,7 @@ cx,cy=64,64 -- space center
 
 dim_colors="0020028088222280"
 dim_pal={}
-for i=1,16 do dim_pal[i]=sub(dim_colors,i,_) end
+for i=1,16 do dim_pal[i]=dim_colors[i] end
 
 ss={}
 ss_set=function(n)
@@ -1476,7 +1421,7 @@ ss_data={ -- 스테이지 데이타
 		max_zako=7,
 		zako_to_boss=25,
 		max_msl=1,
-		year="1 9 2 0",
+		year="1 9 4 0",
 		sky_color=13,cloud_far_color=5,cloud_color=6,cloud_shade_color=13,
 	},
 	{
@@ -1556,28 +1501,44 @@ function _draw()
 	stage:render(0,0)
 
 	-- 개발용
-	if dev==1 then
+	--[[ if dev==1 then
 		print_log()
 		print_system_info()
-	end
+	end ]]
 end
 
+-- <log, system info> --------------------
+--[[ log_d=nil
+log_counter=0
+function log(...)
+	local s=""
+	for i,v in pairs{...} do
+		s=s..v..(i<#{...} and "," or "")
+	end
+	if log_d==nil then log_d=s
+	else log_d=sub(s.."\n"..log_d,1,200) end
+	log_counter=3000
+end
+function print_log()
+	if(log_d==nil or log_counter<=1) log_d=nil return
+	log_counter-=1
+	?log_d,2,2,0
+	?log_d,1,1,8
+end
+function print_system_info()
+	local cpu=round(stat(1)*10000)
+	local s=(cpu\100).."."..(cpu%100\10)..(cpu%10).."%"
+	printa(s,128,2,0,1) printa(s,127,1,11,1)
+end ]]
 
 
 
 
---[[ 오늘의 업데이트 2022/08/01
-- 적, 미사일 행동 개선
-- 적 총알 발사 빈도 정상화
-- 총알 가독성 높임
-- 미사일 속도 더 빠르게
-- 미사일은 트레일에 불꽃 느낌 살짝 첨가
-- 페이즈가 오르면 낙하산 점수도 3000점씩 증가(최대 20000)
+--[[ 오늘의 업데이트 2022/12/30
+- 토큰 많이 확보! (reset 함수 사용)
 ]]
 
 --[[ todo list
-- 자코가 연속으로 2~3발씩 쏘는 경우가 많다
-- 보스 죽이는 순간에 총알 맞으면 상황 꼬인다! -> 내가 죽었을 때 내 총알의 충돌처리 안 하는 걸로 해결...?(상황 재발하는지 지켜봐야 함)
 - 소리, BGM 제대로...(죽거나 클리어, 미사일 발사 등)
 - UI의 자코 게이지 자코 타입에 맞게 표시
 - 적의 공격 타입을 정의해놓고 공격할 때 쓰는 게 좋을 듯?
